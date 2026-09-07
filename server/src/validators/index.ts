@@ -1,0 +1,9 @@
+import {z} from'zod';
+export const objectId=z.string().regex(/^[a-f\d]{24}$/i);
+// Selects submit '' for the blank option; treat that as "not set" rather than an invalid id.
+export const optionalId=objectId.or(z.literal('')).nullish().transform(v=>v===''||v===null?null:v);
+export const listQuery=z.object({page:z.coerce.number().int().min(1).default(1),limit:z.coerce.number().int().min(1).max(100).default(20),search:z.string().max(100).optional(),status:z.string().max(30).optional(),stage:objectId.optional(),salesperson:objectId.optional(),team:objectId.optional(),priority:z.coerce.number().int().min(0).max(3).optional(),source:objectId.optional(),campaign:objectId.optional(),sortBy:z.enum(['createdAt','updatedAt','title','expectedRevenue','priority','probability','expectedClosingDate']).default('createdAt'),sortOrder:z.enum(['asc','desc']).default('desc')});
+const common={title:z.string().trim().min(2).max(160),email:z.string().email().or(z.literal('')).optional(),phone:z.string().max(40).optional(),expectedRevenue:z.coerce.number().min(0).default(0),priority:z.coerce.number().int().min(0).max(3).default(1),salesperson:optionalId,salesTeam:optionalId,tags:z.array(objectId).default([]),source:optionalId,medium:optionalId,campaign:optionalId};
+export const opportunityInput=z.object({...common,company:optionalId,contact:optionalId,recurringRevenue:z.coerce.number().min(0).default(0),probability:z.coerce.number().min(0).max(100).default(10),stage:objectId,expectedClosingDate:z.coerce.date().nullish(),internalNotes:z.string().max(10000).optional()});
+// 'converted' is set by the conversion flow itself and is deliberately not selectable here.
+export const leadInput=z.object({...common,contactName:z.string().max(120).optional(),companyName:z.string().max(160).optional(),notes:z.string().max(10000).optional(),status:z.enum(['new','qualified','disqualified']).optional(),lostReason:optionalId,lostNotes:z.string().max(2000).optional()});
