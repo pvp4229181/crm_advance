@@ -13,6 +13,9 @@ const resources = ['users','roles','stages','tags','sources','campaigns','medium
 // Sales Managers get people management only; the master-data endpoints stay Administrator-only.
 const managerResources: Resource[] = ['users','roles'];
 type Resource = typeof resources[number];
+// Pipeline stages carry two fields beyond a name: the win probability that drives
+// weighted forecasting, and the flag marking the stage that counts a deal as won.
+type StageRecord = Named & { probability?:number; isWon?:boolean };
 
 export default function Configuration(){
   const { user } = useAuth();
@@ -20,22 +23,36 @@ export default function Configuration(){
   const visible = (isAdmin ? resources.slice() : managerResources) as Resource[];
   const [resource,setResource]=useState<Resource>('users');
   const [name,setName]=useState('');
+  const [probability,setProbability]=useState('');
+  const [isWon,setIsWon]=useState(false);
   const [invite,setInvite]=useState(false);
   const [addError,setAddError]=useState('');
   const remove=useMutation({mutationFn:(id:string)=>api(`/${resource}/${id}`,{method:'DELETE'}),onMutate:()=>setAddError(''),onSuccess:()=>qc.invalidateQueries({queryKey:[resource]}),onError:(cause:any)=>setAddError(cause?.message??'Could not delete this record.')});
   const qc=useQueryClient();
+  const patch=useMutation({mutationFn:({id,...body}:{id:string;probability?:number;isWon?:boolean})=>api(`/${resource}/${id}`,{method:'PATCH',body:JSON.stringify(body)}),onMutate:()=>setAddError(''),onSuccess:()=>qc.invalidateQueries({queryKey:[resource]}),onError:(cause:any)=>setAddError(cause?.message??'Could not update this record.')});
   const records=useQuery({queryKey:[resource],queryFn:()=>api<Named[]>(`/${resource}`),enabled:resource!=='users'});
   async function add(){if(!name.trim())return;setAddError('');
-    try{await api(`/${resource}`,{method:'POST',body:JSON.stringify({name,sequence:(records.data?.length??0)*10+10})});setName('');qc.invalidateQueries({queryKey:[resource]})}
+    const body:Record<string,unknown>={name,sequence:(records.data?.length??0)*10+10};
+    if(resource==='stages'){if(probability.trim()!=='')body.probability=Number(probability);body.isWon=isWon;}
+    try{await api(`/${resource}`,{method:'POST',body:JSON.stringify(body)});setName('');setProbability('');setIsWon(false);qc.invalidateQueries({queryKey:[resource]})}
     catch(error:any){setAddError(error?.message??'Could not add this record.')}}
   return <>
     <PageHeader title="Configuration">{resource==='users'&&isAdmin&&<Button className="btn-primary" onClick={()=>setInvite(true)}><Mail size={15}/>Invite person</Button>}</PageHeader>
     <div className="grid min-h-[calc(100vh-99px)] md:grid-cols-[220px_1fr]">
       <aside className="border-r bg-white p-2">{visible.map(item=><button className={`block w-full rounded p-3 text-left text-xs capitalize ${resource===item?'bg-[#e0f2fe] font-semibold text-[#0369a1]':'hover:bg-slate-50'}`} onClick={()=>setResource(item)} key={item}>{item.replace(/([A-Z])/g,' $1')}</button>)}</aside>
-      <section className="p-4">{resource==='users'?<UserAccess onInvite={()=>setInvite(true)} isAdmin={isAdmin}/>:resource==='roles'?<RoleAdmin isAdmin={isAdmin}/>:<div className="panel max-w-3xl"><div className="flex gap-2 border-b p-3"><input className="field" value={name} onChange={event=>setName(event.target.value)} placeholder="Name"/><Button className="btn-primary" onClick={add}>Add</Button></div>{addError&&<div className="border-b border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{addError}</div>}{records.isLoading?<Loading/>:records.data?.map(record=><div className="flex items-center gap-2 border-b p-3 text-sm font-semibold" key={record._id}><span className="truncate">{record.name}</span><span className="ml-auto"><RowMenu busy={remove.isPending} onDelete={()=>{if(confirm(`Delete ${record.name}? This cannot be undone.`))remove.mutate(record._id)}}/></span></div>)}</div>}</section>
+      <section className="p-4">{resource==='users'?<UserAccess onInvite={()=>setInvite(true)} isAdmin={isAdmin}/>:resource==='roles'?<RoleAdmin isAdmin={isAdmin}/>:<div className="panel max-w-3xl"><div className="flex flex-wrap items-center gap-2 border-b p-3"><input className="field" value={name} onChange={event=>setName(event.target.value)} placeholder="Name"/>{resource==='stages'&&<><input className="field w-28" type="number" min="0" max="100" value={probability} onChange={event=>setProbability(event.target.value)} placeholder="Win %"/><label className="flex items-center gap-1 whitespace-nowrap text-xs text-slate-600"><input type="checkbox" checked={isWon} onChange={event=>setIsWon(event.target.checked)}/>Won stage</label></>}<Button className="btn-primary" onClick={add}>Add</Button></div>{addError&&<div className="border-b border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{addError}</div>}{records.isLoading?<Loading/>:records.data?.map(record=><div className="flex items-center gap-2 border-b p-3 text-sm font-semibold" key={record._id}><span className="truncate">{record.name}</span>{resource==='stages'&&<StageFields record={record as StageRecord} busy={patch.isPending} onChange={body=>patch.mutate({id:record._id,...body})}/>}<span className="ml-auto"><RowMenu busy={remove.isPending} onDelete={()=>{if(confirm(`Delete ${record.name}? This cannot be undone.`))remove.mutate(record._id)}}/></span></div>)}</div>}</section>
     </div>
     {invite&&<InvitePerson onClose={()=>setInvite(false)}/>} 
   </>;
+}
+
+function StageFields({record,busy,onChange}:{record:StageRecord;busy:boolean;onChange:(body:{probability?:number;isWon?:boolean})=>void}){
+  // Committed on blur rather than per keystroke so a partially typed number never PATCHes.
+  const commit=(raw:string)=>{const value=Number(raw);if(raw.trim()===''||Number.isNaN(value)||value===record.probability)return;onChange({probability:Math.min(100,Math.max(0,value))});};
+  return <span className="flex items-center gap-3 text-xs font-normal text-slate-600">
+    <label className="flex items-center gap-1">Win %<input className="field w-20 py-1" type="number" min="0" max="100" disabled={busy} defaultValue={record.probability??''} key={`${record._id}-${record.probability}`} onBlur={event=>commit(event.target.value)}/></label>
+    <label className="flex items-center gap-1" title="Deals reaching this stage count as won"><input type="checkbox" disabled={busy} checked={Boolean(record.isWon)} onChange={event=>onChange({isWon:event.target.checked})}/>Won</label>
+  </span>;
 }
 
 function UserAccess({onInvite,isAdmin}:{onInvite:()=>void;isAdmin:boolean}){
