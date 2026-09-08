@@ -4,24 +4,26 @@ import { useAuth } from './context/Auth';
 import { Shell } from './components/Shell';
 import { Loading } from './components/ui';
 import Login from './pages/Login';
+import { routeChunk } from './lib/routes';
 
 // Every route below is fetched on demand. recharts (Dashboard, Pipeline, Reporting),
 // @dnd-kit (Pipeline) and @tanstack/react-table (Leads) are most of the bundle, and
 // none of them are needed to paint the login screen. Login itself stays eager: it is
 // the first thing an unauthenticated visitor sees, so splitting it would only add a
-// round trip before anything renders.
+// round trip before anything renders. Shell warms these same chunks on hover, so a
+// navigation rarely waits on the download.
 const Signup=lazy(()=>import('./pages/Signup'));
 const AcceptInvite=lazy(()=>import('./pages/AcceptInvite'));
-const Dashboard=lazy(()=>import('./pages/Dashboard'));
-const Pipeline=lazy(()=>import('./pages/Pipeline'));
-const Leads=lazy(()=>import('./pages/Leads'));
+const Dashboard=lazy(routeChunk['/']);
+const Pipeline=lazy(routeChunk['/pipeline']);
+const Leads=lazy(routeChunk['/leads']);
 const OpportunityDetail=lazy(()=>import('./pages/OpportunityDetail'));
-const Activities=lazy(()=>import('./pages/Operations').then(m=>({default:m.Activities})));
-const Calendar=lazy(()=>import('./pages/Operations').then(m=>({default:m.Calendar})));
-const Contacts=lazy(()=>import('./pages/Operations').then(m=>({default:m.Contacts})));
-const Reporting=lazy(()=>import('./pages/Reporting'));
-const Configuration=lazy(()=>import('./pages/Configuration'));
-const Notifications=lazy(()=>import('./pages/Notifications'));
+const Activities=lazy(()=>routeChunk['/activities']().then(m=>({default:m.Activities})));
+const Calendar=lazy(()=>routeChunk['/calendar']().then(m=>({default:m.Calendar})));
+const Contacts=lazy(()=>routeChunk['/contacts']().then(m=>({default:m.Contacts})));
+const Reporting=lazy(routeChunk['/reporting']);
+const Configuration=lazy(routeChunk['/configuration']);
+const Notifications=lazy(routeChunk['/notifications']);
 
 export default function App(){
   const {user,loading}=useAuth();
