@@ -5,7 +5,7 @@ const configured = () => Boolean(process.env.SMTP_HOST && process.env.SMTP_PORT 
 let transport: Transporter | undefined;
 
 function getTransport() {
-  if (!configured()) throw new ApiError(503, 'Email is not configured. Add SMTP_HOST, SMTP_PORT, and SMTP_FROM to server/.env.');
+  if (!configured()) throw new ApiError(503, 'Email is not configured. Set SMTP_HOST, SMTP_PORT, and SMTP_FROM in the server environment.');
   if (!transport) transport = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
@@ -24,8 +24,11 @@ export function invitationUrl(token: string) {
 
 export async function sendInvitationEmail(input: { to:string; name:string; role:string; inviter:string; token:string; expiresAt:Date }) {
   const link = invitationUrl(input.token);
+  // Resolved before the try so a configuration error keeps its own 503 instead of
+  // being caught below and masked as a generic delivery failure.
+  const mailer = getTransport();
   try {
-    await getTransport().sendMail({
+    await mailer.sendMail({
       from: process.env.SMTP_FROM,
       to: input.to,
       subject: `You are invited to Lead CRM as ${input.role}`,
