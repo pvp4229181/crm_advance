@@ -8,7 +8,12 @@ const globalCache = globalThis as typeof globalThis & { __mongooseCache?: Cache 
 const cache: Cache = (globalCache.__mongooseCache ??= { conn: null, promise: null });
 
 export async function connectDatabase() {
-  const uri = process.env.MONGODB_URI;
+  // Values copied from dotenv files can retain their surrounding quotes when
+  // they are added through a hosting provider's CLI.
+  const uri = process.env.MONGODB_URI
+    ?.trim()
+    .replace(/^(["'])(.*)\1$/, '$2')
+    .trim();
   if (!uri) throw new Error('MONGODB_URI is required');
   if (cache.conn) return cache.conn;
   cache.promise ??= mongoose.connect(uri, { bufferCommands: false, maxPoolSize: 5, serverSelectionTimeoutMS: 10000 })
