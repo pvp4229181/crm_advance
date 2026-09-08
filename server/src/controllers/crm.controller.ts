@@ -6,7 +6,7 @@ import { leadInput, listQuery, opportunityInput } from '../validators/index.js';
 import { ApiError, escapeRegex } from '../utils/http.js';
 import { convertLead, moveOpportunity } from '../services/crm.service.js';
 
-const pop = [{ path: 'salesperson', select: 'name email avatar' }, { path: 'salesTeam', select: 'name' }, { path: 'stage', select: 'name color sequence probability' }, { path: 'company', select: 'name' }, { path: 'contact', select: 'name' }, { path: 'tags', select: 'name color' }, { path: 'source', select: 'name' }, { path: 'campaign', select: 'name' }, { path: 'convertedOpportunity', select: 'stage', populate: { path: 'stage', select: 'name color sequence' } }];
+const pop = [{ path: 'salesperson', select: 'name email avatar' }, { path: 'salesTeam', select: 'name' }, { path: 'stage', select: 'name color sequence probability' }, { path: 'company', select: 'name' }, { path: 'contact', select: 'name' }, { path: 'tags', select: 'name color' }, { path: 'source', select: 'name' }, { path: 'campaign', select: 'name' }];
 const leadPop = [{ path: 'salesperson', select: 'name email avatar' }, { path: 'salesTeam', select: 'name' }, { path: 'tags', select: 'name color' }, { path: 'source', select: 'name' }, { path: 'medium', select: 'name' }, { path: 'campaign', select: 'name' }, { path: 'convertedOpportunity', select: 'stage', populate: { path: 'stage', select: 'name color sequence' } }];
 export async function listOpportunities(req: Request, res: Response) {
   const q = listQuery.parse(req.query); const filter: any = { ...accessScope(req) };
