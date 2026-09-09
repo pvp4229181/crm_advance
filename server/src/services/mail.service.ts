@@ -40,3 +40,20 @@ export async function sendInvitationEmail(input: { to:string; name:string; role:
     throw new ApiError(502, 'The invitation could not be sent. Check the SMTP settings and try again.');
   }
 }
+
+// Whether outbound email is set up at all - the automation engine checks this before attempting
+// a send so a missing SMTP config degrades to "skipped" instead of a thrown error mid-pipeline.
+export const emailConfigured = configured;
+
+// A plain, low-drama transactional email for the automation engine (a lead's welcome note, a
+// manager's escalation notice) - one shared template rather than one per automated message.
+export async function sendNotifyEmail(input: { to: string; subject: string; heading: string; body: string; link?: { url: string; label: string } }) {
+  const mailer = getTransport();
+  await mailer.sendMail({
+    from: process.env.SMTP_FROM,
+    to: input.to,
+    subject: input.subject,
+    text: `${input.heading}\n\n${input.body}${input.link ? `\n\n${input.link.label}: ${input.link.url}` : ''}`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#1e293b"><div style="background:#0ea5e9;color:white;padding:18px 22px;font-size:18px;font-weight:700">Lead CRM</div><div style="border:1px solid #e2e8f0;border-top:0;padding:24px"><h2 style="font-size:20px">${escapeHtml(input.heading)}</h2><p>${escapeHtml(input.body)}</p>${input.link ? `<p style="margin:26px 0"><a href="${input.link.url}" style="background:#0284c7;color:white;text-decoration:none;padding:11px 18px;border-radius:4px;font-weight:600">${escapeHtml(input.link.label)}</a></p>` : ''}</div></div>`,
+  });
+}

@@ -18,6 +18,7 @@ const Dashboard=lazy(routeChunk['/']);
 const Pipeline=lazy(routeChunk['/pipeline']);
 const Leads=lazy(routeChunk['/leads']);
 const OpportunityDetail=lazy(()=>import('./pages/OpportunityDetail'));
+const LeadDetail=lazy(()=>import('./pages/LeadDetail'));
 const Activities=lazy(()=>routeChunk['/activities']().then(m=>({default:m.Activities})));
 const Calendar=lazy(()=>routeChunk['/calendar']().then(m=>({default:m.Calendar})));
 const Contacts=lazy(()=>routeChunk['/contacts']().then(m=>({default:m.Contacts})));
@@ -29,5 +30,5 @@ export default function App(){
   const {user,loading}=useAuth();
   if(loading)return <Loading/>;
   if(!user)return <Suspense fallback={<Loading/>}><Routes><Route path="/login" element={<Login/>}/><Route path="/signup" element={<Signup/>}/><Route path="/accept-invite" element={<AcceptInvite/>}/><Route path="*" element={<Navigate to="/login" replace/>}/></Routes></Suspense>;
-  return <Shell><Suspense fallback={<Loading/>}><Routes><Route path="/" element={<Dashboard/>}/><Route path="/pipeline" element={<Pipeline/>}/><Route path="/leads" element={<Leads/>}/><Route path="/opportunities/:id" element={<OpportunityDetail/>}/><Route path="/activities" element={<Activities/>}/><Route path="/calendar" element={<Calendar/>}/><Route path="/contacts" element={<Contacts/>}/><Route path="/reporting" element={<Reporting/>}/><Route path="/configuration" element={['Administrator','Sales Manager'].includes(user.role.name)?<Configuration/>:<Navigate to="/"/>}/><Route path="/notifications" element={<Notifications/>}/><Route path="/login" element={<Navigate to="/" replace/>}/><Route path="/signup" element={<Navigate to="/" replace/>}/><Route path="/accept-invite" element={<Navigate to="/" replace/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes></Suspense></Shell>;
+  return <Shell><Suspense fallback={<Loading/>}><Routes><Route path="/" element={<Dashboard/>}/><Route path="/pipeline" element={<Pipeline/>}/><Route path="/leads" element={<Leads/>}/><Route path="/leads/:id" element={<LeadDetail/>}/><Route path="/opportunities/:id" element={<OpportunityDetail/>}/><Route path="/activities" element={<Activities/>}/><Route path="/calendar" element={<Calendar/>}/><Route path="/contacts" element={<Contacts/>}/><Route path="/reporting" element={<Reporting/>}/><Route path="/configuration" element={['Administrator','Sales Manager'].includes(user.role.name)?<Configuration/>:<Navigate to="/"/>}/><Route path="/notifications" element={<Notifications/>}/><Route path="/login" element={<Navigate to="/" replace/>}/><Route path="/signup" element={<Navigate to="/" replace/>}/><Route path="/accept-invite" element={<Navigate to="/" replace/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes></Suspense></Shell>;
 }

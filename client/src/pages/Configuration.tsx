@@ -1,21 +1,24 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Mail, RefreshCw, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
+import { Copy, Mail, Radio, RefreshCw, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
 import { api, date } from '../lib/api';
-import type { Named } from '../lib/types';
+import type { ChannelType, IntakeChannel, Metadata, Named } from '../lib/types';
 import { PageHeader } from '../components/Shell';
 import { useAuth } from '../context/Auth';
 import { Avatar, Button, Empty, Loading, Modal, RowMenu } from '../components/ui';
 
 type AdminUser = Named & { email:string; active:boolean; role:Named; createdAt:string };
 type Invitation = { _id:string; name:string; email:string; role:Named; invitedBy?:Named; status:string; expiresAt:string; createdAt:string };
-const resources = ['users','roles','stages','tags','sources','campaigns','mediums','lostReasons'] as const;
+const resources = ['users','roles','stages','tags','sources','campaigns','mediums','lostReasons','channels'] as const;
 // Sales Managers get people management only; the master-data endpoints stay Administrator-only.
 const managerResources: Resource[] = ['users','roles'];
 type Resource = typeof resources[number];
 // Pipeline stages carry two fields beyond a name: the win probability that drives
 // weighted forecasting, and the flag marking the stage that counts a deal as won.
 type StageRecord = Named & { probability?:number; isWon?:boolean };
+// A lead source carries a monthly spend on top of its name - what ROI-by-source on the Reporting
+// page divides revenue by.
+type SourceRecord = Named & { monthlySpend?:number };
 
 export default function Configuration(){
   const { user } = useAuth();
@@ -29,8 +32,8 @@ export default function Configuration(){
   const [addError,setAddError]=useState('');
   const remove=useMutation({mutationFn:(id:string)=>api(`/${resource}/${id}`,{method:'DELETE'}),onMutate:()=>setAddError(''),onSuccess:()=>qc.invalidateQueries({queryKey:[resource]}),onError:(cause:any)=>setAddError(cause?.message??'Could not delete this record.')});
   const qc=useQueryClient();
-  const patch=useMutation({mutationFn:({id,...body}:{id:string;probability?:number;isWon?:boolean})=>api(`/${resource}/${id}`,{method:'PATCH',body:JSON.stringify(body)}),onMutate:()=>setAddError(''),onSuccess:()=>qc.invalidateQueries({queryKey:[resource]}),onError:(cause:any)=>setAddError(cause?.message??'Could not update this record.')});
-  const records=useQuery({queryKey:[resource],queryFn:()=>api<Named[]>(`/${resource}`),enabled:resource!=='users'});
+  const patch=useMutation({mutationFn:({id,...body}:{id:string;probability?:number;isWon?:boolean;monthlySpend?:number})=>api(`/${resource}/${id}`,{method:'PATCH',body:JSON.stringify(body)}),onMutate:()=>setAddError(''),onSuccess:()=>qc.invalidateQueries({queryKey:[resource]}),onError:(cause:any)=>setAddError(cause?.message??'Could not update this record.')});
+  const records=useQuery({queryKey:[resource],queryFn:()=>api<Named[]>(`/${resource}`),enabled:resource!=='users'&&resource!=='channels'});
   async function add(){if(!name.trim())return;setAddError('');
     const body:Record<string,unknown>={name,sequence:(records.data?.length??0)*10+10};
     if(resource==='stages'){if(probability.trim()!=='')body.probability=Number(probability);body.isWon=isWon;}
@@ -40,7 +43,7 @@ export default function Configuration(){
     <PageHeader title="Configuration">{resource==='users'&&isAdmin&&<Button className="btn-primary" onClick={()=>setInvite(true)}><Mail size={15}/>Invite person</Button>}</PageHeader>
     <div className="grid min-h-[calc(100vh-99px)] md:grid-cols-[220px_1fr]">
       <aside className="border-r bg-white p-2">{visible.map(item=><button className={`block w-full rounded p-3 text-left text-xs capitalize ${resource===item?'bg-[#e0f2fe] font-semibold text-[#0369a1]':'hover:bg-slate-50'}`} onClick={()=>setResource(item)} key={item}>{item.replace(/([A-Z])/g,' $1')}</button>)}</aside>
-      <section className="p-4">{resource==='users'?<UserAccess onInvite={()=>setInvite(true)} isAdmin={isAdmin}/>:resource==='roles'?<RoleAdmin isAdmin={isAdmin}/>:<div className="panel max-w-3xl"><div className="flex flex-wrap items-center gap-2 border-b p-3"><input className="field" value={name} onChange={event=>setName(event.target.value)} placeholder="Name"/>{resource==='stages'&&<><input className="field w-28" type="number" min="0" max="100" value={probability} onChange={event=>setProbability(event.target.value)} placeholder="Win %"/><label className="flex items-center gap-1 whitespace-nowrap text-xs text-slate-600"><input type="checkbox" checked={isWon} onChange={event=>setIsWon(event.target.checked)}/>Won stage</label></>}<Button className="btn-primary" onClick={add}>Add</Button></div>{addError&&<div className="border-b border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{addError}</div>}{records.isLoading?<Loading/>:records.data?.map(record=><div className="flex items-center gap-2 border-b p-3 text-sm font-semibold" key={record._id}><span className="truncate">{record.name}</span>{resource==='stages'&&<StageFields record={record as StageRecord} busy={patch.isPending} onChange={body=>patch.mutate({id:record._id,...body})}/>}<span className="ml-auto"><RowMenu busy={remove.isPending} onDelete={()=>{if(confirm(`Delete ${record.name}? This cannot be undone.`))remove.mutate(record._id)}}/></span></div>)}</div>}</section>
+      <section className="p-4">{resource==='users'?<UserAccess onInvite={()=>setInvite(true)} isAdmin={isAdmin}/>:resource==='roles'?<RoleAdmin isAdmin={isAdmin}/>:resource==='channels'?<ChannelAdmin/>:<div className="panel max-w-3xl"><div className="flex flex-wrap items-center gap-2 border-b p-3"><input className="field" value={name} onChange={event=>setName(event.target.value)} placeholder="Name"/>{resource==='stages'&&<><input className="field w-28" type="number" min="0" max="100" value={probability} onChange={event=>setProbability(event.target.value)} placeholder="Win %"/><label className="flex items-center gap-1 whitespace-nowrap text-xs text-slate-600"><input type="checkbox" checked={isWon} onChange={event=>setIsWon(event.target.checked)}/>Won stage</label></>}<Button className="btn-primary" onClick={add}>Add</Button></div>{addError&&<div className="border-b border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{addError}</div>}{records.isLoading?<Loading/>:records.data?.map(record=><div className="flex items-center gap-2 border-b p-3 text-sm font-semibold" key={record._id}><span className="truncate">{record.name}</span>{resource==='stages'&&<StageFields record={record as StageRecord} busy={patch.isPending} onChange={body=>patch.mutate({id:record._id,...body})}/>}{resource==='sources'&&<SourceFields record={record as SourceRecord} busy={patch.isPending} onChange={body=>patch.mutate({id:record._id,...body})}/>}<span className="ml-auto"><RowMenu busy={remove.isPending} onDelete={()=>{if(confirm(`Delete ${record.name}? This cannot be undone.`))remove.mutate(record._id)}}/></span></div>)}</div>}</section>
     </div>
     {invite&&<InvitePerson onClose={()=>setInvite(false)}/>} 
   </>;
@@ -52,6 +55,13 @@ function StageFields({record,busy,onChange}:{record:StageRecord;busy:boolean;onC
   return <span className="flex items-center gap-3 text-xs font-normal text-slate-600">
     <label className="flex items-center gap-1">Win %<input className="field w-20 py-1" type="number" min="0" max="100" disabled={busy} defaultValue={record.probability??''} key={`${record._id}-${record.probability}`} onBlur={event=>commit(event.target.value)}/></label>
     <label className="flex items-center gap-1" title="Deals reaching this stage count as won"><input type="checkbox" disabled={busy} checked={Boolean(record.isWon)} onChange={event=>onChange({isWon:event.target.checked})}/>Won</label>
+  </span>;
+}
+
+function SourceFields({record,busy,onChange}:{record:SourceRecord;busy:boolean;onChange:(body:{monthlySpend?:number})=>void}){
+  const commit=(raw:string)=>{const value=Number(raw);if(raw.trim()===''||Number.isNaN(value)||value===record.monthlySpend)return;onChange({monthlySpend:Math.max(0,value)});};
+  return <span className="flex items-center gap-3 text-xs font-normal text-slate-600">
+    <label className="flex items-center gap-1" title="Feeds ROI by source on the Reporting page">Spend/mo ₹<input className="field w-28 py-1" type="number" min="0" disabled={busy} defaultValue={record.monthlySpend??''} key={`${record._id}-${record.monthlySpend}`} onBlur={event=>commit(event.target.value)}/></label>
   </span>;
 }
 
@@ -114,4 +124,33 @@ function InvitePerson({onClose}:{onClose:()=>void}){
   const [form,setForm]=useState({name:'',email:'',role:''}); const [error,setError]=useState(''); const [busy,setBusy]=useState(false);
   async function submit(event:React.FormEvent){event.preventDefault();setBusy(true);setError('');try{await api('/admin/invitations',{method:'POST',body:JSON.stringify(form)});await qc.invalidateQueries({queryKey:['admin-invitations']});onClose()}catch(cause){setError(cause instanceof Error?cause.message:'Unable to send invitation')}finally{setBusy(false)}}
   return <Modal title="Invite Person to Lead CRM" onClose={onClose} width="max-w-md"><form onSubmit={submit}><div className="space-y-4 p-5"><div className="rounded border border-sky-100 bg-sky-50 p-3 text-xs text-sky-900">Choose the person’s access role now. They will receive a private email link and set their own password.</div><label><span className="label">Full name</span><input className="field" required minLength={2} value={form.name} onChange={event=>setForm({...form,name:event.target.value})}/></label><label><span className="label">Email address</span><input className="field" type="email" required value={form.email} onChange={event=>setForm({...form,email:event.target.value})}/></label><label><span className="label">Access role</span><select className="field" required value={form.role} onChange={event=>setForm({...form,role:event.target.value})}><option value="">Select a role</option>{roles.data?.map(role=><option key={role._id} value={role._id}>{role.name}</option>)}</select></label>{error&&<p className="rounded bg-red-50 p-2 text-xs text-red-700">{error}</p>}</div><div className="flex justify-end gap-2 border-t bg-slate-50 p-3"><Button type="button" onClick={onClose}>Cancel</Button><Button className="btn-primary" disabled={busy}><Mail size={14}/>{busy?'Sending…':'Send invitation'}</Button></div></form></Modal>;
+}
+
+const channelTypeLabels: Record<ChannelType,string> = { website_form:'Website form', landing_page:'Landing page', whatsapp:'WhatsApp', facebook:'Facebook', instagram:'Instagram', google_ads:'Google Ads', email:'Email', chatbot:'Chatbot', api:'API / integration', csv_import:'CSV import', phone_call:'Phone call' };
+
+// Each channel is a revocable API key an external system (a form, a webhook forwarder standing
+// in for WhatsApp/Facebook/Google Ads, a chatbot) authenticates with against POST /api/public/leads.
+// The raw key is only ever shown once, right after it's created or rotated.
+function ChannelAdmin(){
+  const qc=useQueryClient();
+  const [form,setForm]=useState({name:'',channelType:'website_form' as ChannelType,source:'',medium:'',campaign:'',salesTeam:''});
+  const [revealedKey,setRevealedKey]=useState<{name:string;apiKey:string}|null>(null);
+  const [error,setError]=useState('');
+  const channels=useQuery({queryKey:['channels'],queryFn:()=>api<IntakeChannel[]>('/admin/channels')});
+  const meta=useQuery({queryKey:['metadata'],queryFn:()=>api<Metadata>('/metadata')});
+  const invalidate=()=>qc.invalidateQueries({queryKey:['channels']});
+  const create=useMutation({mutationFn:()=>api<IntakeChannel>('/admin/channels',{method:'POST',body:JSON.stringify({name:form.name,channelType:form.channelType,source:form.source||undefined,medium:form.medium||undefined,campaign:form.campaign||undefined,salesTeam:form.salesTeam||undefined})}),onMutate:()=>setError(''),onSuccess:channel=>{setRevealedKey({name:channel.name,apiKey:channel.apiKey!});setForm({name:'',channelType:'website_form',source:'',medium:'',campaign:'',salesTeam:''});invalidate()},onError:(cause:any)=>setError(cause?.message??'Could not create this channel.')});
+  const rotate=useMutation({mutationFn:(id:string)=>api<IntakeChannel>(`/admin/channels/${id}/rotate`,{method:'POST'}),onSuccess:channel=>{setRevealedKey({name:channel.name,apiKey:channel.apiKey!});invalidate()},onError:(cause:any)=>setError(cause?.message??'Could not rotate this key.')});
+  const toggle=useMutation({mutationFn:({id,active}:{id:string;active:boolean})=>api(`/admin/channels/${id}`,{method:'PATCH',body:JSON.stringify({active})}),onSuccess:invalidate,onError:(cause:any)=>setError(cause?.message??'Could not update this channel.')});
+  const remove=useMutation({mutationFn:(id:string)=>api(`/admin/channels/${id}`,{method:'DELETE'}),onSuccess:invalidate,onError:(cause:any)=>setError(cause?.message??'Could not delete this channel.')});
+  if(channels.isLoading||meta.isLoading)return <Loading/>;
+  const endpoint=`${window.location.origin}/api/public/leads`;
+  const emailEndpoint=`${window.location.origin}/api/public/email`;
+  return <div className="max-w-4xl space-y-4">
+    <div className="rounded border border-sky-100 bg-sky-50 p-3 text-xs text-sky-900">Every channel is a separate API key. Point a website form, a WhatsApp/Facebook/Instagram/Google Ads webhook forwarder (via Zapier, Make, or a native webhook), a chatbot, or your own integration at <code className="rounded bg-white px-1 py-0.5">POST {endpoint}</code> with header <code className="rounded bg-white px-1 py-0.5">X-Api-Key</code>. For an Email channel, point your provider's inbound-mail webhook (SendGrid Inbound Parse, Mailgun Routes, or Postmark) at <code className="rounded bg-white px-1 py-0.5">POST {emailEndpoint}</code> with the same header instead. Every lead it sends is deduplicated, scored, and auto-assigned exactly like one entered by hand. Phone calls don't need a channel key at all — log one straight from the Leads page.</div>
+    {error&&<div className="rounded border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}<button className="float-right font-semibold" onClick={()=>setError('')}>Dismiss</button></div>}
+    <div className="panel p-3"><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3"><input className="field" placeholder="Channel name (e.g. Homepage form)" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><select className="field" value={form.channelType} onChange={e=>setForm({...form,channelType:e.target.value as ChannelType})}>{Object.entries(channelTypeLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><select className="field" value={form.source} onChange={e=>setForm({...form,source:e.target.value})}><option value="">Default source (optional)</option>{meta.data?.sources.map(s=><option key={s._id} value={s._id}>{s.name}</option>)}</select><select className="field" value={form.campaign} onChange={e=>setForm({...form,campaign:e.target.value})}><option value="">Default campaign (optional)</option>{meta.data?.campaigns.map(c=><option key={c._id} value={c._id}>{c.name}</option>)}</select><select className="field" value={form.salesTeam} onChange={e=>setForm({...form,salesTeam:e.target.value})}><option value="">Round-robin: whole workspace</option>{meta.data?.teams.map(t=><option key={t._id} value={t._id}>{t.name}</option>)}</select><Button className="btn-primary" disabled={!form.name.trim()||create.isPending} onClick={()=>create.mutate()}><Radio size={14}/>Create channel</Button></div></div>
+    {revealedKey&&<div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900"><p className="font-semibold">API key for “{revealedKey.name}” — copy it now, it will not be shown again.</p><div className="mt-2 flex items-center gap-2"><code className="flex-1 overflow-x-auto rounded bg-white px-2 py-1.5">{revealedKey.apiKey}</code><Button onClick={()=>{navigator.clipboard?.writeText(revealedKey.apiKey);}}><Copy size={13}/>Copy</Button><Button onClick={()=>setRevealedKey(null)}>Done</Button></div></div>}
+    <div className="panel overflow-hidden"><table className="w-full min-w-[700px] text-left text-xs"><thead className="border-b bg-slate-50 text-slate-500"><tr><th className="p-3">Channel</th><th>Type</th><th>Key</th><th>Last used</th><th>Status</th><th/></tr></thead><tbody>{channels.data?.map(channel=><tr className="border-b" key={channel._id}><td className="p-3 font-semibold">{channel.name}{channel.source&&<span className="ml-2 badge bg-slate-100 text-slate-500">{channel.source.name}</span>}</td><td>{channelTypeLabels[channel.channelType]}</td><td><code>••••{channel.keyPreview}</code></td><td>{channel.lastUsedAt?date(channel.lastUsedAt):'Never'}</td><td><button disabled={toggle.isPending} className={`badge ${channel.active?'bg-emerald-100 text-emerald-700':'bg-slate-200 text-slate-600'}`} onClick={()=>toggle.mutate({id:channel._id,active:!channel.active})}>{channel.active?'Active':'Disabled'}</button></td><td><span className="flex items-center gap-1"><Button title="Rotate key" disabled={rotate.isPending} onClick={()=>{if(confirm('Rotate this key? The previous key stops working immediately.'))rotate.mutate(channel._id)}}><RefreshCw size={13}/></Button><RowMenu busy={remove.isPending} onDelete={()=>{if(confirm(`Delete channel “${channel.name}”? Leads already captured through it keep their record.`))remove.mutate(channel._id)}}/></span></td></tr>)}</tbody></table>{!channels.data?.length&&<Empty title="No intake channels yet" detail="Create one above to start capturing leads from outside the CRM."/>}</div>
+  </div>;
 }

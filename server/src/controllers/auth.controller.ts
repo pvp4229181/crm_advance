@@ -3,6 +3,19 @@ import bcrypt from 'bcryptjs'; import jwt from 'jsonwebtoken'; import mongoose f
 import { Role, User } from '../models/index.js'; import { ApiError } from '../utils/http.js';
 const cookieOptions = () => ({ httpOnly:true, secure:process.env.NODE_ENV==='production', sameSite:'lax' as const, maxAge:8*60*60*1000 });
 export async function login(req:Request,res:Response){const {email,password}=req.body;if(typeof email!=='string'||typeof password!=='string')throw new ApiError(422,'Email and password are required');const user=await User.findOne({email:email.toLowerCase(),active:true}).select('+password').populate('role');if(!user||!await bcrypt.compare(password,user.password))throw new ApiError(401,'Invalid email or password');const token=jwt.sign({sub:String(user._id)},process.env.JWT_SECRET!,{expiresIn:(process.env.JWT_EXPIRES_IN??'8h') as any});res.cookie('orbit_token',token,cookieOptions()).json({user:safe(user)});}
+// The lock only has to close the race between two simultaneous first signups. Left behind by a
+// crashed attempt - or by wiping the users collection - it would otherwise shut signup forever,
+// so a lock past the in-flight window is reclaimed rather than trusted.
+const inFlightLockMs=2*60*1000;
+const lockTaken=()=>new ApiError(409,'Workspace initialization is already in progress');
+async function acquireBootstrapLock(){
+  const lockCollection=mongoose.connection.collection('bootstrap_locks');
+  const claim=async()=>{try{await lockCollection.insertOne({_id:'initial-admin' as any,createdAt:new Date()});return true;}catch{return false;}};
+  if(await claim())return lockCollection;
+  const {deletedCount}=await lockCollection.deleteOne({_id:'initial-admin' as any,createdAt:{$lt:new Date(Date.now()-inFlightLockMs)}});
+  if(!deletedCount||!await claim())throw lockTaken();
+  return lockCollection;
+}
 export async function signupAdmin(req:Request,res:Response){
   const {name,email,password,confirmPassword}=req.body;
   if(typeof name!=='string'||name.trim().length<2)throw new ApiError(422,'Name must contain at least 2 characters');
@@ -10,8 +23,7 @@ export async function signupAdmin(req:Request,res:Response){
   if(typeof password!=='string'||password.length<8||!/[A-Z]/.test(password)||!/[a-z]/.test(password)||!/[0-9]/.test(password))throw new ApiError(422,'Password must be at least 8 characters and include upper-case, lower-case, and numeric characters');
   if(password!==confirmPassword)throw new ApiError(422,'Passwords do not match');
   if(await User.exists({}))throw new ApiError(403,'Administrator signup is disabled after workspace initialization');
-  const lockCollection=mongoose.connection.collection('bootstrap_locks');
-  try{await lockCollection.insertOne({_id:'initial-admin' as any,createdAt:new Date()});}catch{throw new ApiError(409,'Workspace initialization is already in progress');}
+  const lockCollection=await acquireBootstrapLock();
   try{
     const role=await Role.findOneAndUpdate({name:'Administrator'},{$setOnInsert:{permissions:['*'],active:true}},{new:true,upsert:true});
     const user=await User.create({name:name.trim(),email:email.toLowerCase(),password:await bcrypt.hash(password,12),role:role._id,active:true});
