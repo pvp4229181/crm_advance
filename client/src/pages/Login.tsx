@@ -5,8 +5,8 @@ import { useAuth } from '../context/Auth';
 
 export default function Login() {
   const { user, login } = useAuth();
-  const [email, setEmail] = useState('admin@orbitcrm.test');
-  const [password, setPassword] = useState('Password123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);

@@ -1,0 +1,7 @@
+// Standard lead sources, shared by the full seed and the additive `seed:sources` script.
+export const leadSourceNames = [
+  'Website', 'Landing Page', 'Live Chat', 'Referral', 'Existing Customer', 'Partner', 'Event', 'Trade Show', 'Webinar',
+  'Walk-in', 'Inbound Call', 'Cold Call', 'Outbound', 'Email', 'Email Campaign', 'SMS', 'WhatsApp',
+  'Facebook', 'Instagram', 'LinkedIn', 'Twitter / X', 'YouTube', 'Google Ads', 'Meta Ads', 'Organic Search',
+  'IndiaMART', 'JustDial', 'Marketplace', 'Print Advertisement', 'CSV Import', 'Other',
+];

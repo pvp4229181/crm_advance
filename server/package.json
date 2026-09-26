@@ -7,7 +7,9 @@
     "start": "node dist/server.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "seed": "tsx src/seed/index.ts"
+    "seed": "tsx src/seed/index.ts",
+    "seed:sources": "tsx src/seed/sources.ts",
+    "seed:templates": "tsx src/seed/templates.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
