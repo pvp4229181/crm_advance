@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import type{Request,Response}from'express';
+import{waitUntil}from'@vercel/functions';
 import{Communication,Lead,TimelineEvent,WhatsAppBot,WhatsAppTemplate}from'../models/index.js';
 import{accessScope}from'../middleware/auth.js';
 import{ApiError}from'../utils/http.js';
@@ -54,7 +55,9 @@ export async function updateTemplate(req:Request,res:Response){
 export async function submitTemplate(req:Request,res:Response){const id=objectId.safeParse(req.params.id);const template=id.success?await WhatsAppTemplate.findById(id.data).lean():null;if(!template)throw new ApiError(404,'WhatsApp template not found');res.json(await submitWhatsAppTemplate(template))}
 
 export function verifyWebhook(req:Request,res:Response){const mode=req.query['hub.mode'],token=req.query['hub.verify_token'],challenge=req.query['hub.challenge'];if(mode==='subscribe'&&token&&token===process.env.WHATSAPP_VERIFY_TOKEN)return res.status(200).send(String(challenge??''));res.sendStatus(403)}
-export function receiveWebhook(req:Request,res:Response){if(!validSignature(req))return res.sendStatus(401);res.sendStatus(200);void processWebhook(req.body).catch(error=>console.error('WhatsApp webhook processing failed',error))}
+export function receiveWebhook(req:Request,res:Response){if(!validSignature(req))return res.sendStatus(401);res.sendStatus(200);
+  // Meta wants a fast 200, but Vercel freezes the function once the response is sent; waitUntil keeps it alive until the message is stored and answered.
+  waitUntil(processWebhook(req.body).catch(error=>console.error('WhatsApp webhook processing failed',error)))}
 function validSignature(req:Request){const secret=process.env.WHATSAPP_APP_SECRET,signature=req.header('x-hub-signature-256');if(!secret||!signature||!(req as any).rawBody)return false;const expected=`sha256=${crypto.createHmac('sha256',secret).update((req as any).rawBody).digest('hex')}`;return expected.length===signature.length&&crypto.timingSafeEqual(Buffer.from(expected),Buffer.from(signature))}
 // Quick-reply buttons on templates arrive as 'button' or 'interactive' messages rather than 'text'.
 const incomingText=(incoming:any):string|undefined=>incoming.type==='text'?incoming.text?.body:incoming.type==='button'?incoming.button?.text:incoming.type==='interactive'?incoming.interactive?.button_reply?.title??incoming.interactive?.list_reply?.title:undefined;
