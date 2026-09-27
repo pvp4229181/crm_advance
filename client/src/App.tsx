@@ -5,6 +5,7 @@ import { Shell } from "./components/Shell";
 import { Loading } from "./components/ui";
 import Login from "./pages/Login";
 import { routeChunk } from "./lib/routes";
+import { useRouteSeo } from "./lib/seo";
 
 // Every route below is fetched on demand. recharts (Dashboard, Pipeline, Reporting),
 // @dnd-kit (Pipeline) and @tanstack/react-table (Leads) are most of the bundle, and
@@ -43,6 +44,7 @@ const WhatsAppAutomation = lazy(() => import("./pages/WhatsAppAutomation"));
 
 export default function App() {
   const { user, loading } = useAuth();
+  useRouteSeo();
   if (loading) return <Loading />;
   if (!user)
     return (

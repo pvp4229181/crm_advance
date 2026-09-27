@@ -1,0 +1,9 @@
+# Only the sign-in page is public. Everything else needs an account, and invite links carry
+# single-use tokens, so they are kept out of search results.
+User-agent: *
+Allow: /$
+Allow: /login
+Disallow: /api/
+Disallow: /accept-invite
+
+Sitemap: https://crm-advance.vercel.app/sitemap.xml
