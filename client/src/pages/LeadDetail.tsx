@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   BriefcaseBusiness,
@@ -78,9 +78,10 @@ export default function LeadDetail() {
     nav = useNavigate(),
     qc = useQueryClient();
   const [note, setNote] = useState("");
+  const [params] = useSearchParams();
   const [tab, setTab] = useState<
     "overview" | "activity" | "whatsapp" | "tasks"
-  >("overview");
+  >(params.get("tab") === "whatsapp" ? "whatsapp" : "overview");
   const q = useQuery({
     queryKey: ["lead", id],
     queryFn: () => api<LeadProfile>(`/leads/${id}`),
@@ -358,6 +359,8 @@ export function WhatsAppPanel({
   const conversation = useQuery({
     queryKey: ["lead-whatsapp", leadId],
     queryFn: () => api<WhatsAppConversation>(`/leads/${leadId}/whatsapp`),
+    // Customer messages arrive through Meta's webhook, so poll while the chat is open to show them without a reload.
+    refetchInterval: 5000,
   });
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["lead-whatsapp", leadId] });
@@ -425,8 +428,14 @@ export function WhatsAppPanel({
   const data = conversation.data;
   const windowClosed = data.window.tracked && !data.window.open;
   const activeComposer = composer ?? (windowClosed ? "template" : "message");
+  // CRM templates go out as normal text, so Meta rejects them while the window is closed; only
+  // Meta-approved templates can open a conversation. Default to one that can actually be sent.
+  const sendable = (item: TemplateOption) => !(windowClosed && item.kind === "crm");
+  const metaTemplates = data.templates.filter((item) => item.kind !== "crm");
+  const crmTemplates = data.templates.filter((item) => item.kind === "crm");
   const template =
-    data.templates.find((item) => item._id === templateId) ??
+    data.templates.find((item) => item._id === templateId && sendable(item)) ??
+    data.templates.find(sendable) ??
     data.templates[0];
   const error =
     draft.error || send.error || sendTemplate.error || summarize.error;
@@ -594,9 +603,26 @@ export function WhatsAppPanel({
           <p
             className={`mb-3 rounded-lg px-3 py-2 text-xs ${windowClosed ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`}
           >
-            {windowClosed
-              ? "This contact hasn't messaged in the last 24 hours, so WhatsApp only allows approved templates."
-              : `Free-form replies are open until ${new Date(data.window.expiresAt!).toLocaleString()}.`}
+            {windowClosed ? (
+              <>
+                This contact hasn&apos;t messaged in the last 24 hours, so
+                WhatsApp only delivers Meta-approved templates.{" "}
+                {metaTemplates.length
+                  ? "Send one to restart the chat — once they reply, free-form messages open for 24 hours."
+                  : "You don't have an approved template yet — create one under WhatsApp → Templates and submit it to Meta."}
+                {activeComposer === "message" && metaTemplates.length > 0 && (
+                  <button
+                    type="button"
+                    className="ml-2 font-semibold underline"
+                    onClick={() => setComposer("template")}
+                  >
+                    Choose a template
+                  </button>
+                )}
+              </>
+            ) : (
+              `Free-form replies are open until ${new Date(data.window.expiresAt!).toLocaleString()}.`
+            )}
           </p>
         )}
         {activeComposer === "message" ? (
@@ -648,11 +674,30 @@ export function WhatsAppPanel({
               value={template._id}
               onChange={(event) => setTemplateId(event.target.value)}
             >
-              {data.templates.map((item) => (
-                <option key={item._id} value={item._id}>
-                  {item.kind === "crm" ? `${item.name} (CRM)` : `${item.name} (${item.language})`}
-                </option>
-              ))}
+              {metaTemplates.length > 0 && (
+                <optgroup label="Meta-approved · can start a conversation">
+                  {metaTemplates.map((item) => (
+                    <option key={item._id} value={item._id}>
+                      {`${item.name} (${item.language})`}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {crmTemplates.length > 0 && (
+                <optgroup
+                  label={
+                    windowClosed
+                      ? "CRM · available after the contact replies"
+                      : "CRM · sent as a normal message"
+                  }
+                >
+                  {crmTemplates.map((item) => (
+                    <option key={item._id} value={item._id} disabled={windowClosed}>
+                      {`${item.name} (CRM)`}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
             <p className="mt-2 whitespace-pre-wrap rounded-lg border bg-slate-50 p-3 text-sm text-slate-700">
               {template.preview}

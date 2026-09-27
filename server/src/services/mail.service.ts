@@ -1,11 +1,11 @@
 import nodemailer, { type Transporter } from 'nodemailer';
 import { ApiError } from '../utils/http.js';
 
-const configured = () => Boolean(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_FROM);
+export const mailConfigured = () => Boolean(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_FROM);
 let transport: Transporter | undefined;
 
 function getTransport() {
-  if (!configured()) throw new ApiError(503, 'Email is not configured. Set SMTP_HOST, SMTP_PORT, and SMTP_FROM in the server environment.');
+  if (!mailConfigured()) throw new ApiError(503, 'Email is not configured. Set SMTP_HOST, SMTP_PORT, and SMTP_FROM in the server environment.');
   if (!transport) transport = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
@@ -16,6 +16,25 @@ function getTransport() {
 }
 
 const escapeHtml = (value: string) => value.replace(/[&<>'"]/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[character]!);
+
+// Sent from the shared SMTP_FROM address; replies go to the salesperson who wrote it.
+export async function sendLeadEmail(input: { to:string; subject:string; body:string; replyTo?:string }) {
+  const mailer = getTransport();
+  try {
+    const info = await mailer.sendMail({
+      from: process.env.SMTP_FROM,
+      to: input.to,
+      replyTo: input.replyTo,
+      subject: input.subject,
+      text: input.body,
+      html: `<div style="font-family:Arial,sans-serif;color:#1e293b;white-space:pre-wrap">${escapeHtml(input.body)}</div>`,
+    });
+    return info.messageId as string;
+  } catch (cause) {
+    console.error('Lead email failed', cause);
+    throw new ApiError(502, 'The email could not be sent. Check the SMTP settings and try again.');
+  }
+}
 
 export function invitationUrl(token: string) {
   const appUrl = (process.env.APP_URL || process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');

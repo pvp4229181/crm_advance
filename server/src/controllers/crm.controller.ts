@@ -11,7 +11,7 @@ const pop = [{ path: 'salesperson', select: 'name email avatar' }, { path: 'sale
 const leadPop = [{ path: 'salesperson', select: 'name email avatar' }, { path: 'salesTeam', select: 'name' }, { path: 'tags', select: 'name color' }, { path: 'source', select: 'name' }, { path: 'medium', select: 'name' }, { path: 'campaign', select: 'name' }, { path: 'convertedOpportunity', select: 'stage', populate: { path: 'stage', select: 'name color sequence' } }];
 export async function listOpportunities(req: Request, res: Response) {
   const q = listQuery.parse(req.query); const filter: any = { ...accessScope(req) };
-  for (const key of ['status','stage','salesperson','source','campaign'] as const) if (q[key]) filter[key] = q[key];
+  for (const key of ['status','stage','salesperson','source','campaign','company','contact'] as const) if (q[key]) filter[key] = q[key];
   if (q.team) filter.salesTeam = q.team; if (q.priority !== undefined) filter.priority = q.priority;
   if (q.search) filter.$or = ['title','email','phone'].map((key) => ({ [key]: new RegExp(escapeRegex(q.search!), 'i') }));
   const skip = (q.page - 1) * q.limit;
