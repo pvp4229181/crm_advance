@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "whatsapp-business": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["mcp/whatsapp-business/index.mjs"]
+    }
+  }
+}
