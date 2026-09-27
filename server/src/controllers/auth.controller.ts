@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'; import jwt from 'jsonwebtoken'; import mongoose f
 import { Role, User } from '../models/index.js'; import { ApiError } from '../utils/http.js';
 const cookieOptions = () => ({ httpOnly:true, secure:process.env.NODE_ENV==='production', sameSite:'lax' as const, maxAge:8*60*60*1000 });
 export async function login(req:Request,res:Response){const {email,password}=req.body;if(typeof email!=='string'||typeof password!=='string')throw new ApiError(422,'Email and password are required');const user=await User.findOne({email:email.toLowerCase(),active:true}).select('+password').populate('role');if(!user||!await bcrypt.compare(password,user.password))throw new ApiError(401,'Invalid email or password');const token=jwt.sign({sub:String(user._id)},process.env.JWT_SECRET!,{expiresIn:(process.env.JWT_EXPIRES_IN??'8h') as any});res.cookie('orbit_token',token,cookieOptions()).json({user:safe(user)});}
+export async function signupStatus(_req:Request,res:Response){res.json({open:!await User.exists({})});}
 export async function signupAdmin(req:Request,res:Response){
   const {name,email,password,confirmPassword}=req.body;
   if(typeof name!=='string'||name.trim().length<2)throw new ApiError(422,'Name must contain at least 2 characters');

@@ -1,7 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/Auth';
+import { api } from '../lib/api';
+
+/** Admin signup only exists until the first user is created; after that the link would lead to a dead end. */
+export function useSignupOpen() {
+  const [open, setOpen] = useState<boolean | null>(null);
+  useEffect(() => { api<{ open: boolean }>('/auth/signup-status').then(x => setOpen(x.open)).catch(() => setOpen(false)); }, []);
+  return open;
+}
 
 export default function Login() {
   const { user, login } = useAuth();
@@ -10,6 +18,7 @@ export default function Login() {
   const [show, setShow] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const signupOpen = useSignupOpen();
   if (user) return <Navigate to="/" />;
 
   async function submit(event: React.FormEvent) {
@@ -31,7 +40,7 @@ export default function Login() {
       </div>
       {error && <p className="mt-3 rounded bg-red-50 p-2 text-xs text-red-700">{error}</p>}
       <button className="btn btn-primary mt-5 w-full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
-      <div className="mt-5 border-t pt-4 text-center text-xs text-slate-500">Setting up a new workspace? <Link className="font-semibold text-[#0284c7] hover:underline" to="/signup">Create administrator</Link></div>
+      {signupOpen && <div className="mt-5 border-t pt-4 text-center text-xs text-slate-500">Setting up a new workspace? <Link className="font-semibold text-[#0284c7] hover:underline" to="/signup">Create administrator</Link></div>}
     </form>
   </div>;
 }

@@ -18,6 +18,7 @@ const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 15, standardHe
 const invitationLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 40, standardHeaders: true, legacyHeaders: false });
 const aiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false });
 api.post('/auth/login', loginLimiter, asyncHandler(auth.login));
+api.get('/auth/signup-status', asyncHandler(auth.signupStatus));
 api.post('/auth/signup-admin', asyncHandler(auth.signupAdmin));
 api.get('/auth/invitations/:token', invitationLimiter, asyncHandler(invitation.inspectInvitation));
 api.post('/auth/invitations/:token/accept', invitationLimiter, asyncHandler(invitation.acceptInvitation));
