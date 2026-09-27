@@ -188,7 +188,11 @@ html.dark body {
 .dark thead.bg-slate-50 { background: rgb(148 163 184 / 6%); }
 .dark .recharts-default-tooltip { background: var(--surface) !important; border-color: var(--border) !important; color: var(--text); }
 
-:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 2px; }
+/* In the base layer so a utility like outline-none can opt an element out; unlayered,
+   this rule beat every Tailwind utility and outlined inputs that draw their own focus. */
+@layer base {
+  :focus-visible { outline: 2px solid var(--brand-500); outline-offset: 2px; }
+}
 ::selection { background: var(--brand-100); color: #312e81; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
