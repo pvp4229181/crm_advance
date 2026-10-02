@@ -10,3 +10,5 @@ coverage
 
 .vercel
 .env*
+
+!server/.env.example

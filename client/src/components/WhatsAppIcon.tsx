@@ -2,7 +2,7 @@
 export function WhatsAppIcon({
   size = 16,
   className,
-  color = "#25D366",
+  color = '#25D366',
 }: {
   size?: number;
   className?: string;

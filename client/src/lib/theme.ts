@@ -1,16 +1,16 @@
-import { useState } from "react";
+import { useState } from 'react';
 
 // index.html applies the stored theme before first paint; this keeps React in sync with it.
-export type Theme = "light" | "dark";
-const KEY = "theme";
+export type Theme = 'light' | 'dark';
+const KEY = 'theme';
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(() =>
-    document.documentElement.classList.contains("dark") ? "dark" : "light",
+    document.documentElement.classList.contains('dark') ? 'dark' : 'light',
   );
   const toggle = () => {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    document.documentElement.classList.toggle("dark", next === "dark");
+    const next: Theme = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.classList.toggle('dark', next === 'dark');
     try {
       localStorage.setItem(KEY, next);
     } catch {

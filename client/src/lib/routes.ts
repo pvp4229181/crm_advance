@@ -1,21 +1,21 @@
-import type { QueryClient } from "@tanstack/react-query";
-import { api } from "./api";
+import type { QueryClient } from '@tanstack/react-query';
+import { api } from './api';
 
 // The code chunk behind each route. App builds its lazy() routes from these and Shell
 // warms them on hover, so by the time a click lands the chunk is usually already in
 // memory instead of being downloaded during the navigation itself.
 export const routeChunk = {
-  "/": () => import("../pages/Dashboard"),
-  "/pipeline": () => import("../pages/Pipeline"),
-  "/leads": () => import("../pages/Leads"),
-  "/activities": () => import("../pages/Operations"),
-  "/calendar": () => import("../pages/Operations"),
-  "/contacts": () => import("../pages/Operations"),
-  "/reporting": () => import("../pages/Reporting"),
-  "/configuration": () => import("../pages/Configuration"),
-  "/notifications": () => import("../pages/Notifications"),
-  "/whatsapp": () => import("../pages/WhatsAppAutomation"),
-  "/automation": () => import("../pages/Workflows"),
+  '/': () => import('../pages/Dashboard'),
+  '/pipeline': () => import('../pages/Pipeline'),
+  '/leads': () => import('../pages/Leads'),
+  '/activities': () => import('../pages/Operations'),
+  '/calendar': () => import('../pages/Operations'),
+  '/contacts': () => import('../pages/Operations'),
+  '/reporting': () => import('../pages/Reporting'),
+  '/configuration': () => import('../pages/Configuration'),
+  '/notifications': () => import('../pages/Notifications'),
+  '/whatsapp': () => import('../pages/WhatsAppAutomation'),
+  '/automation': () => import('../pages/Workflows'),
 };
 
 // Requests a route makes on its first render, written with the same key and fetcher the
@@ -26,24 +26,24 @@ const routeData: Record<
   string,
   { queryKey: unknown[]; queryFn: () => Promise<unknown> }[]
 > = {
-  "/": [{ queryKey: ["dashboard"], queryFn: () => api("/dashboard") }],
-  "/pipeline": [{ queryKey: ["metadata"], queryFn: () => api("/metadata") }],
-  "/leads": [{ queryKey: ["metadata"], queryFn: () => api("/metadata") }],
-  "/activities": [
-    { queryKey: ["activities"], queryFn: () => api("/activities") },
+  '/': [{ queryKey: ['dashboard'], queryFn: () => api('/dashboard') }],
+  '/pipeline': [{ queryKey: ['metadata'], queryFn: () => api('/metadata') }],
+  '/leads': [{ queryKey: ['metadata'], queryFn: () => api('/metadata') }],
+  '/activities': [
+    { queryKey: ['activities'], queryFn: () => api('/activities') },
   ],
-  "/calendar": [
-    { queryKey: ["activities"], queryFn: () => api("/activities") },
+  '/calendar': [
+    { queryKey: ['activities'], queryFn: () => api('/activities') },
   ],
-  "/contacts": [{ queryKey: ["contacts"], queryFn: () => api("/contacts") }],
-  "/automation": [
-    { queryKey: ["workflows"], queryFn: () => api("/workflows") },
-    { queryKey: ["metadata"], queryFn: () => api("/metadata") },
+  '/contacts': [{ queryKey: ['contacts'], queryFn: () => api('/contacts') }],
+  '/automation': [
+    { queryKey: ['workflows'], queryFn: () => api('/workflows') },
+    { queryKey: ['metadata'], queryFn: () => api('/metadata') },
   ],
-  "/whatsapp": [
+  '/whatsapp': [
     {
-      queryKey: ["whatsapp-leads"],
-      queryFn: () => api("/leads?page=1&limit=100"),
+      queryKey: ['whatsapp-leads'],
+      queryFn: () => api('/leads?page=1&limit=100'),
     },
   ],
 };
@@ -69,6 +69,6 @@ export function warmRouteChunks() {
     for (const load of Object.values(routeChunk)) void load();
   };
   const idle = window.requestIdleCallback;
-  if (typeof idle === "function") idle(run, { timeout: 4000 });
+  if (typeof idle === 'function') idle(run, { timeout: 4000 });
   else window.setTimeout(run, 2000);
 }

@@ -1,33 +1,767 @@
-import{useState}from'react';import{useMutation,useQuery,useQueryClient}from'@tanstack/react-query';import{closestCorners,DndContext,DragOverlay,MouseSensor,TouchSensor,useDroppable,useSensor,useSensors,type DragEndEvent}from'@dnd-kit/core';import{useSortable,SortableContext,verticalListSortingStrategy}from'@dnd-kit/sortable';import{CSS}from'@dnd-kit/utilities';import{BarChart3,GripVertical,Plus,Star}from'lucide-react';import{api,money}from'../lib/api';import type{Metadata,Opportunity,Paged}from'../lib/types';import{PageHeader,SearchToolbar,type ToolbarState}from'../components/Shell';import{Avatar,Button,Loading,Modal,RowMenu}from'../components/ui';import{RecordForm,type FormValues}from'../components/RecordForm';import{Link,useNavigate,useSearchParams}from'react-router-dom';
-import{Bar,BarChart,CartesianGrid,Cell,Pie,PieChart,ResponsiveContainer,Tooltip,XAxis,YAxis}from'recharts';export default function Pipeline(){const qc=useQueryClient(),nav=useNavigate();const[searchParams]=useSearchParams();const status=['won','lost'].includes(searchParams.get('status')??'')?searchParams.get('status')!:'open';const closed=status!=='open';const[search,setSearch]=useState(''),[create,setCreate]=useState<string|null>(null);const[error,setError]=useState('');const[toolbar,setToolbar]=useState<ToolbarState>({filters:{},groupBy:''});const[showMonthly,setShowMonthly]=useState(false);const[dragging,setDragging]=useState<string|null>(null);const sensors=useSensors(useSensor(MouseSensor,{activationConstraint:{distance:4}}),useSensor(TouchSensor,{activationConstraint:{delay:200,tolerance:6}}));const meta=useQuery({queryKey:['metadata'],queryFn:()=>api<Metadata>('/metadata')});const params=new URLSearchParams({limit:'100',status,search});for(const[key,val]of Object.entries(toolbar.filters))if(val)params.set(key,val);const q=useQuery({queryKey:['opportunities','pipeline',status,search,toolbar.filters],queryFn:()=>api<Paged<Opportunity>>(`/opportunities?${params.toString()}`)});const move=useMutation({mutationFn:(x:{id:string;stageId:string;orderedIds:string[]})=>api(`/opportunities/${x.id}/move`,{method:'PATCH',body:JSON.stringify(x)}),onMutate:async x=>{setError('');const key=['opportunities','pipeline',status,search,toolbar.filters];await qc.cancelQueries({queryKey:key});const old=qc.getQueryData<Paged<Opportunity>>(key);const target=meta.data?.stages.find(s=>s._id===x.stageId);if(old)qc.setQueryData(key,{...old,data:old.data.map(o=>{const at=x.orderedIds.indexOf(o._id);const moved=o._id===x.id?{...o,stage:{...o.stage,_id:x.stageId,name:target?.name??o.stage.name}}:o;return at<0?moved:{...moved,kanbanOrder:at}})});return{old,key}},onError:(cause:any,_x,c)=>{if(c?.old)qc.setQueryData(c.key,c.old);setError(cause?.message??'Could not move this opportunity.')},onSettled:()=>qc.invalidateQueries({queryKey:['opportunities']})});const remove=useMutation({mutationFn:(id:string)=>api(`/opportunities/${id}`,{method:'DELETE'}),onMutate:()=>setError(''),onSuccess:()=>qc.invalidateQueries({queryKey:['opportunities']}),onError:(cause:any)=>setError(cause?.message??'Could not delete this opportunity.')});if(q.isLoading||meta.isLoading)return <Loading/>;const data=q.data!.data;function end(e:DragEndEvent){setDragging(null);if(toolbar.groupBy||closed)return;if(!e.over)return;const id=String(e.active.id),over=String(e.over.id);const stage=meta.data!.stages.find(s=>s._id===over)?._id??data.find(x=>x._id===over)?.stage._id;if(!stage)return;const ids=data.filter(x=>x.stage._id===stage&&x._id!==id).map(x=>x._id);const at=ids.indexOf(over);ids.splice(at<0?ids.length:at,0,id);move.mutate({id,stageId:stage,orderedIds:ids})}function moveTo(op:Opportunity,stageId:string){if(op.stage._id===stageId)return;const ids=data.filter(x=>x.stage._id===stageId&&x._id!==op._id).map(x=>x._id);ids.push(op._id);move.mutate({id:op._id,stageId,orderedIds:ids})}const priorityNames=['Normal','Medium','High','Very high'];const keyOf=(o:Opportunity)=>toolbar.groupBy==='salesperson'?(o.salesperson?._id??'none'):toolbar.groupBy==='source'?(o.source?._id??'none'):toolbar.groupBy==='campaign'?(o.campaign?._id??'none'):toolbar.groupBy==='team'?(o.salesTeam?._id??'none'):toolbar.groupBy==='priority'?String(o.priority):o.stage._id;const nameOf=(o:Opportunity)=>toolbar.groupBy==='salesperson'?(o.salesperson?.name??'Unassigned'):toolbar.groupBy==='source'?(o.source?.name??'No source'):toolbar.groupBy==='campaign'?(o.campaign?.name??'No campaign'):toolbar.groupBy==='team'?(o.salesTeam?.name??'No team'):toolbar.groupBy==='priority'?(priorityNames[o.priority]??'Unset'):o.stage.name;const columns=toolbar.groupBy?Array.from(new Map(data.map(o=>[keyOf(o),{_id:keyOf(o),name:nameOf(o),color:'#94a3b8'}])).values()):meta.data!.stages.map(x=>({_id:x._id,name:x.name,color:x.color}));return <><PageHeader title="Pipeline" onNew={()=>setCreate(meta.data!.stages[0]!._id)}><Button className={showMonthly?"btn-primary":""} onClick={()=>setShowMonthly(!showMonthly)}><BarChart3 size={15}/>Monthly</Button></PageHeader>{showMonthly&&<MonthlyPanel/>}<SearchToolbar value={search} onChange={setSearch} resource="opportunities" state={toolbar} onState={setToolbar} filterGroups={[{key:'stage',label:'Stage',options:meta.data!.stages.map(x=>({value:x._id,label:x.name}))},{key:'priority',label:'Priority',options:[{value:'0',label:'Normal'},{value:'1',label:'Medium'},{value:'2',label:'High'},{value:'3',label:'Very high'}]},{key:'salesperson',label:'Salesperson',options:(meta.data?.users??[]).map(u=>({value:u._id,label:u.name}))},{key:'team',label:'Sales team',options:(meta.data?.teams??[]).map(t=>({value:t._id,label:t.name}))},{key:'source',label:'Source',options:(meta.data?.sources??[]).map(x=>({value:x._id,label:x.name}))},{key:'campaign',label:'Campaign',options:(meta.data?.campaigns??[]).map(c=>({value:c._id,label:c.name}))}]} groupOptions={[{value:'salesperson',label:'Salesperson'},{value:'team',label:'Sales team'},{value:'source',label:'Source'},{value:'campaign',label:'Campaign'},{value:'priority',label:'Priority'}]}/><div className="flex items-center gap-1 border-b px-4 py-1.5 text-[11px]"><span className="mr-1 text-slate-500">Showing</span>{(['open','won','lost'] as const).map(x=><Link key={x} to={x==='open'?'/pipeline':`/pipeline?status=${x}`} className={`rounded-full px-2.5 py-0.5 font-semibold capitalize ${status===x?'bg-[#0284c7] text-white':'text-slate-600 hover:bg-slate-100'}`}>{x} deals</Link>)}{closed&&<span className="ml-2 text-slate-400">Closed deals are read-only here — reopen one from its page to move it.</span>}</div>{toolbar.groupBy&&<div className="border-b bg-amber-50 px-4 py-1.5 text-[11px] text-amber-800">Grouped by {toolbar.groupBy} — drag-and-drop is disabled until you clear Group By.</div>}{error&&<div className="border-b border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700">{error}</div>}<DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={e=>setDragging(String(e.active.id))} onDragCancel={()=>setDragging(null)} onDragEnd={end}><div className={`flex gap-2 overflow-x-auto p-3 ${showMonthly?"h-[calc(100vh-430px)]":"h-[calc(100vh-130px)]"}`}>{columns.map(stage=><Column key={stage._id} stage={stage} draggable={!toolbar.groupBy&&!closed} stages={meta.data!.stages} onMove={closed?undefined:moveTo} items={data.filter(x=>keyOf(x)===stage._id).sort((a,b)=>a.kanbanOrder-b.kanbanOrder)} add={toolbar.groupBy||closed?undefined:()=>setCreate(stage._id)} open={id=>nav(`/opportunities/${id}`)} onDelete={op=>{if(confirm(`Delete "${op.title}"? This cannot be undone.`))remove.mutate(op._id)}} busy={remove.isPending}/>)}</div><DragOverlay>{dragging&&(()=>{const op=data.find(x=>x._id===dragging);return op&&<article className="deal-card w-[290px] cursor-grabbing rounded border border-[#0284c7] bg-white p-3 shadow-xl"><b className="text-[13px]">{op.title}</b><p className="text-[11px] text-slate-500">{op.company?.name??'No company'}</p><b className="mt-3 block text-xs">{money(op.expectedRevenue)}</b></article>})()}</DragOverlay></DndContext>{create&&<Modal title="New Opportunity" onClose={()=>setCreate(null)}><RecordForm kind="opportunity" metadata={meta.data!} initial={{stage:create}} onCancel={()=>setCreate(null)} onSubmit={async(v:FormValues)=>{await api('/opportunities',{method:'POST',body:JSON.stringify(v)});setCreate(null);qc.invalidateQueries({queryKey:['opportunities']})}}/></Modal>}</>}
-function Column({stage,items,add,open,onDelete,busy,draggable=true,stages,onMove}:{stage:{_id:string;name:string;color?:string};items:Opportunity[];add?:()=>void;open:(id:string)=>void;onDelete:(op:Opportunity)=>void;busy?:boolean;draggable?:boolean;stages?:{_id:string;name:string}[];onMove?:(op:Opportunity,stageId:string)=>void}){const{setNodeRef,isOver}=useDroppable({id:stage._id});return <section ref={setNodeRef} className={`pipeline-col w-[290px] shrink-0 rounded ${isOver?'drop-over bg-sky-50':''}`} style={{'--stage':stage.color??'#3b82f6'} as React.CSSProperties}><header className="mb-2 flex h-10 items-center gap-2 border-b-2 px-1" style={{borderColor:stage.color}}><b className="text-[13px]">{stage.name}</b><span className="badge bg-slate-200">{items.length}</span><span className="ml-auto text-[11px] text-slate-500">{money(items.reduce((n,x)=>n+x.expectedRevenue,0))}</span>{add&&<button onClick={add}><Plus size={16}/></button>}</header><SortableContext items={items} strategy={verticalListSortingStrategy}><div className="min-h-36 space-y-2">{items.map(x=><Card key={x._id} op={x} open={()=>open(x._id)} onDelete={()=>onDelete(x)} busy={busy} draggable={draggable} stages={stages} onMove={stageId=>onMove?.(x,stageId)}/>)}</div></SortableContext></section>}function Card({op,open,onDelete,busy,draggable=true,stages,onMove}:{op:Opportunity;open:()=>void;onDelete:()=>void;busy?:boolean;draggable?:boolean;stages?:{_id:string;name:string}[];onMove?:(stageId:string)=>void}){const s=useSortable({id:op._id,disabled:!draggable});return <article ref={s.setNodeRef} {...(draggable?s.listeners:{})} title={draggable?'Drag to another stage':undefined} style={{transform:CSS.Transform.toString(s.transform),transition:s.transition,opacity:s.isDragging?0.4:undefined}} className={`deal-card select-none rounded border bg-white p-3 shadow-sm hover:border-[#0284c7] ${draggable?'cursor-grab active:cursor-grabbing':''}`}><div className="flex gap-2">{draggable&&<GripVertical size={14} className="mt-0.5 shrink-0 text-slate-400" aria-hidden/>}<button className="flex-1 cursor-[inherit] text-left" onClick={open}><b className="text-[13px]">{op.title}</b><p className="text-[11px] text-slate-500">{op.company?.name??'No company'}</p></button>{op.priority>0&&<Star size={12} fill="#f59e0b" color="#f59e0b"/>}<RowMenu label="Delete deal" busy={busy} onDelete={onDelete} itemsTitle={stages?.length&&onMove?'Move to stage':undefined} items={onMove?(stages??[]).map(stage=>({label:stage.name,active:stage._id===op.stage._id,disabled:stage._id===op.stage._id,onSelect:()=>onMove(stage._id)})):[]}/></div><div className="mt-3 flex items-center"><b className="text-xs">{money(op.expectedRevenue)}</b><span className="ml-auto text-[10px]">{op.probability}%</span><Avatar name={op.salesperson?.name} size={23}/></div></article>}
-// @ts-nocheck -- dnd-kit accepts identifier-bearing records at runtime.
+import { useState } from 'react';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useInfiniteQuery,
+  type InfiniteData,
+} from '@tanstack/react-query';
+import {
+  closestCorners,
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  useSortable,
+  SortableContext,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { BarChart3, GripVertical, Plus, Star } from 'lucide-react';
+import { api, money } from '../lib/api';
+import type { Metadata, Opportunity, Paged } from '../lib/types';
+import {
+  PageHeader,
+  SearchToolbar,
+  type ToolbarState,
+} from '../components/Shell';
+import {
+  Avatar,
+  Button,
+  Loading,
+  Modal,
+  RowMenu,
+  QueryError,
+} from '../components/ui';
+import { RecordForm, type FormValues } from '../components/RecordForm';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+export default function Pipeline() {
+  const qc = useQueryClient(),
+    nav = useNavigate();
+  const [searchParams] = useSearchParams();
+  const status = ['won', 'lost'].includes(searchParams.get('status') ?? '')
+    ? searchParams.get('status')!
+    : 'open';
+  const closed = status !== 'open';
+  const [search, setSearch] = useState(''),
+    [create, setCreate] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [toolbar, setToolbar] = useState<ToolbarState>({
+    filters: {},
+    groupBy: '',
+  });
+  const [showMonthly, setShowMonthly] = useState(false);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 6 },
+    }),
+  );
+  const meta = useQuery({
+    queryKey: ['metadata'],
+    queryFn: () => api<Metadata>('/metadata'),
+  });
+  const params = new URLSearchParams({
+    limit: '100',
+    status,
+    search,
+    summary: 'true',
+    groupBy: toolbar.groupBy || 'stage',
+    sortBy: 'kanbanOrder',
+    sortOrder: 'asc',
+  });
+  for (const [key, val] of Object.entries(toolbar.filters))
+    if (val) params.set(key, val);
+  const pipelineKey = [
+    'opportunities',
+    'pipeline',
+    status,
+    search,
+    toolbar.filters,
+    toolbar.groupBy,
+  ];
+  const q = useInfiniteQuery({
+    queryKey: pipelineKey,
+    initialPageParam: 1,
+    queryFn: ({ pageParam, signal }) =>
+      api<Paged<Opportunity>>(
+        `/opportunities?${params.toString()}&page=${pageParam}`,
+        { signal },
+      ),
+    getNextPageParam: (last) =>
+      last.pagination.page < last.pagination.pages
+        ? last.pagination.page + 1
+        : undefined,
+  });
+  const move = useMutation({
+    mutationFn: (x: { id: string; stageId: string; orderedIds: string[] }) =>
+      api(`/opportunities/${x.id}/move`, {
+        method: 'PATCH',
+        body: JSON.stringify(x),
+      }),
+    onMutate: async (x) => {
+      setError('');
+      const key = pipelineKey;
+      await qc.cancelQueries({ queryKey: key });
+      const old = qc.getQueryData<InfiniteData<Paged<Opportunity>>>(key);
+      const target = meta.data?.stages.find((s) => s._id === x.stageId);
+      if (old)
+        qc.setQueryData(key, {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            data: page.data.map((o) => {
+              const at = x.orderedIds.indexOf(o._id);
+              const moved =
+                o._id === x.id
+                  ? {
+                      ...o,
+                      stage: {
+                        ...o.stage,
+                        _id: x.stageId,
+                        name: target?.name ?? o.stage.name,
+                      },
+                    }
+                  : o;
+              return at < 0 ? moved : { ...moved, kanbanOrder: at };
+            }),
+          })),
+        });
+      return { old, key };
+    },
+    onError: (cause: any, _x, c) => {
+      if (c?.old) qc.setQueryData(c.key, c.old);
+      setError(cause?.message ?? 'Could not move this opportunity.');
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['opportunities'] }),
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) =>
+      api(`/opportunities/${id}`, { method: 'DELETE' }),
+    onMutate: () => setError(''),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['opportunities'] }),
+    onError: (cause: any) =>
+      setError(cause?.message ?? 'Could not delete this opportunity.'),
+  });
+  if (q.isLoading || meta.isLoading) return <Loading />;
+  if (q.isError || meta.isError)
+    return (
+      <QueryError
+        error={q.error ?? meta.error}
+        retry={() => {
+          q.refetch();
+          meta.refetch();
+        }}
+      />
+    );
+  const data = q.data?.pages.flatMap((page) => page.data) ?? [];
+  const summary = q.data?.pages[0]?.summary ?? [];
+  const total = q.data?.pages[0]?.pagination.total ?? 0;
+  function end(e: DragEndEvent) {
+    setDragging(null);
+    if (toolbar.groupBy || closed) return;
+    if (!e.over) return;
+    const id = String(e.active.id),
+      over = String(e.over.id);
+    const stage =
+      meta.data!.stages.find((s) => s._id === over)?._id ??
+      data.find((x) => x._id === over)?.stage._id;
+    if (!stage) return;
+    const ids = data
+      .filter((x) => x.stage._id === stage && x._id !== id)
+      .map((x) => x._id);
+    const at = ids.indexOf(over);
+    ids.splice(at < 0 ? ids.length : at, 0, id);
+    move.mutate({ id, stageId: stage, orderedIds: ids });
+  }
+  function moveTo(op: Opportunity, stageId: string) {
+    if (op.stage._id === stageId) return;
+    const ids = data
+      .filter((x) => x.stage._id === stageId && x._id !== op._id)
+      .map((x) => x._id);
+    ids.push(op._id);
+    move.mutate({ id: op._id, stageId, orderedIds: ids });
+  }
+  const priorityNames = ['Normal', 'Medium', 'High', 'Very high'];
+  const keyOf = (o: Opportunity) =>
+    toolbar.groupBy === 'salesperson'
+      ? (o.salesperson?._id ?? 'none')
+      : toolbar.groupBy === 'source'
+        ? (o.source?._id ?? 'none')
+        : toolbar.groupBy === 'campaign'
+          ? (o.campaign?._id ?? 'none')
+          : toolbar.groupBy === 'team'
+            ? (o.salesTeam?._id ?? 'none')
+            : toolbar.groupBy === 'priority'
+              ? String(o.priority)
+              : o.stage._id;
+  const nameOf = (o: Opportunity) =>
+    toolbar.groupBy === 'salesperson'
+      ? (o.salesperson?.name ?? 'Unassigned')
+      : toolbar.groupBy === 'source'
+        ? (o.source?.name ?? 'No source')
+        : toolbar.groupBy === 'campaign'
+          ? (o.campaign?.name ?? 'No campaign')
+          : toolbar.groupBy === 'team'
+            ? (o.salesTeam?.name ?? 'No team')
+            : toolbar.groupBy === 'priority'
+              ? (priorityNames[o.priority] ?? 'Unset')
+              : o.stage.name;
+  const columns = toolbar.groupBy
+    ? Array.from(
+        new Map(
+          data.map((o) => [
+            keyOf(o),
+            { _id: keyOf(o), name: nameOf(o), color: '#94a3b8' },
+          ]),
+        ).values(),
+      )
+    : meta.data!.stages.map((x) => ({
+        _id: x._id,
+        name: x.name,
+        color: x.color,
+      }));
+  return (
+    <>
+      <PageHeader
+        title="Pipeline"
+        onNew={
+          meta.data?.stages.length
+            ? () => setCreate(meta.data!.stages[0]!._id)
+            : undefined
+        }
+      >
+        <Button
+          className={showMonthly ? 'btn-primary' : ''}
+          onClick={() => setShowMonthly(!showMonthly)}
+        >
+          <BarChart3 size={15} />
+          Monthly
+        </Button>
+      </PageHeader>
+      {showMonthly && <MonthlyPanel />}
+      <SearchToolbar
+        value={search}
+        onChange={setSearch}
+        resource="opportunities"
+        state={toolbar}
+        onState={setToolbar}
+        filterGroups={[
+          {
+            key: 'stage',
+            label: 'Stage',
+            options: meta.data!.stages.map((x) => ({
+              value: x._id,
+              label: x.name,
+            })),
+          },
+          {
+            key: 'priority',
+            label: 'Priority',
+            options: [
+              { value: '0', label: 'Normal' },
+              { value: '1', label: 'Medium' },
+              { value: '2', label: 'High' },
+              { value: '3', label: 'Very high' },
+            ],
+          },
+          {
+            key: 'salesperson',
+            label: 'Salesperson',
+            options: (meta.data?.users ?? []).map((u) => ({
+              value: u._id,
+              label: u.name,
+            })),
+          },
+          {
+            key: 'team',
+            label: 'Sales team',
+            options: (meta.data?.teams ?? []).map((t) => ({
+              value: t._id,
+              label: t.name,
+            })),
+          },
+          {
+            key: 'source',
+            label: 'Source',
+            options: (meta.data?.sources ?? []).map((x) => ({
+              value: x._id,
+              label: x.name,
+            })),
+          },
+          {
+            key: 'campaign',
+            label: 'Campaign',
+            options: (meta.data?.campaigns ?? []).map((c) => ({
+              value: c._id,
+              label: c.name,
+            })),
+          },
+        ]}
+        groupOptions={[
+          { value: 'salesperson', label: 'Salesperson' },
+          { value: 'team', label: 'Sales team' },
+          { value: 'source', label: 'Source' },
+          { value: 'campaign', label: 'Campaign' },
+          { value: 'priority', label: 'Priority' },
+        ]}
+      />
+      <div className="flex items-center gap-1 border-b px-4 py-1.5 text-[11px]">
+        <span className="mr-1 text-slate-500">Showing</span>
+        {(['open', 'won', 'lost'] as const).map((x) => (
+          <Link
+            key={x}
+            to={x === 'open' ? '/pipeline' : `/pipeline?status=${x}`}
+            className={`rounded-full px-2.5 py-0.5 font-semibold capitalize ${status === x ? 'bg-[#0284c7] text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+          >
+            {x} deals
+          </Link>
+        ))}
+        {closed && (
+          <span className="ml-2 text-slate-400">
+            Closed deals are read-only here — reopen one from its page to move
+            it.
+          </span>
+        )}
+      </div>
+      {toolbar.groupBy && (
+        <div className="border-b bg-amber-50 px-4 py-1.5 text-[11px] text-amber-800">
+          Grouped by {toolbar.groupBy} — drag-and-drop is disabled until you
+          clear Group By.
+        </div>
+      )}
+      {error && (
+        <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700">
+          {error}
+        </div>
+      )}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={(e) => setDragging(String(e.active.id))}
+        onDragCancel={() => setDragging(null)}
+        onDragEnd={end}
+      >
+        <div
+          className={`flex gap-2 overflow-x-auto p-3 ${showMonthly ? 'h-[calc(100vh-430px)]' : 'h-[calc(100vh-130px)]'}`}
+        >
+          {columns.map((stage) => (
+            <Column
+              key={stage._id}
+              stage={stage}
+              summary={summary.find(
+                (item) => String(item._id ?? 'none') === stage._id,
+              )}
+              draggable={!toolbar.groupBy && !closed}
+              stages={meta.data!.stages}
+              onMove={closed ? undefined : moveTo}
+              items={data
+                .filter((x) => keyOf(x) === stage._id)
+                .sort((a, b) => a.kanbanOrder - b.kanbanOrder)}
+              add={
+                toolbar.groupBy || closed
+                  ? undefined
+                  : () => setCreate(stage._id)
+              }
+              open={(id) => nav(`/opportunities/${id}`)}
+              onDelete={(op) => {
+                if (confirm(`Delete "${op.title}"? This cannot be undone.`))
+                  remove.mutate(op._id);
+              }}
+              busy={remove.isPending}
+            />
+          ))}
+        </div>
+        <DragOverlay>
+          {dragging &&
+            (() => {
+              const op = data.find((x) => x._id === dragging);
+              return (
+                op && (
+                  <article className="deal-card w-[290px] cursor-grabbing rounded border border-[#0284c7] bg-white p-3 shadow-xl">
+                    <b className="text-[13px]">{op.title}</b>
+                    <p className="text-[11px] text-slate-500">
+                      {op.company?.name ?? 'No company'}
+                    </p>
+                    <b className="mt-3 block text-xs">
+                      {money(op.expectedRevenue)}
+                    </b>
+                  </article>
+                )
+              );
+            })()}
+        </DragOverlay>
+      </DndContext>
+      <div className="flex items-center justify-center gap-3 border-t p-3 text-sm">
+        <span>
+          Showing {data.length} of {total} deals
+        </span>
+        {q.hasNextPage && (
+          <Button
+            disabled={q.isFetchingNextPage}
+            onClick={() => q.fetchNextPage()}
+          >
+            {q.isFetchingNextPage ? 'Loading?' : 'Load more'}
+          </Button>
+        )}
+      </div>
+      {create && (
+        <Modal title="New Opportunity" onClose={() => setCreate(null)}>
+          <RecordForm
+            kind="opportunity"
+            metadata={meta.data!}
+            initial={{ stage: create }}
+            onCancel={() => setCreate(null)}
+            onSubmit={async (v: FormValues) => {
+              await api('/opportunities', {
+                method: 'POST',
+                body: JSON.stringify(v),
+              });
+              setCreate(null);
+              qc.invalidateQueries({ queryKey: ['opportunities'] });
+            }}
+          />
+        </Modal>
+      )}
+    </>
+  );
+}
+function Column({
+  stage,
+  summary,
+  items,
+  add,
+  open,
+  onDelete,
+  busy,
+  draggable = true,
+  stages,
+  onMove,
+}: {
+  stage: { _id: string; name: string; color?: string };
+  summary?: { count: number; value: number };
+  items: Opportunity[];
+  add?: () => void;
+  open: (id: string) => void;
+  onDelete: (op: Opportunity) => void;
+  busy?: boolean;
+  draggable?: boolean;
+  stages?: { _id: string; name: string }[];
+  onMove?: (op: Opportunity, stageId: string) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: stage._id });
+  return (
+    <section
+      ref={setNodeRef}
+      className={`pipeline-col w-[290px] shrink-0 rounded ${isOver ? 'drop-over bg-sky-50' : ''}`}
+      style={{ '--stage': stage.color ?? '#3b82f6' } as React.CSSProperties}
+    >
+      <header
+        className="mb-2 flex h-10 items-center gap-2 border-b-2 px-1"
+        style={{ borderColor: stage.color }}
+      >
+        <b className="text-[13px]">{stage.name}</b>
+        <span className="badge bg-slate-200">
+          {summary?.count ?? items.length}
+        </span>
+        <span className="ml-auto text-[11px] text-slate-500">
+          {money(
+            summary?.value ?? items.reduce((n, x) => n + x.expectedRevenue, 0),
+          )}
+        </span>
+        {add && (
+          <button aria-label={`Add opportunity to ${stage.name}`} onClick={add}>
+            <Plus size={16} />
+          </button>
+        )}
+      </header>
+      <SortableContext
+        items={items.map((item) => item._id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className="min-h-36 space-y-2">
+          {items.map((x) => (
+            <Card
+              key={x._id}
+              op={x}
+              open={() => open(x._id)}
+              onDelete={() => onDelete(x)}
+              busy={busy}
+              draggable={draggable}
+              stages={stages}
+              onMove={(stageId) => onMove?.(x, stageId)}
+            />
+          ))}
+        </div>
+      </SortableContext>
+    </section>
+  );
+}
+function Card({
+  op,
+  open,
+  onDelete,
+  busy,
+  draggable = true,
+  stages,
+  onMove,
+}: {
+  op: Opportunity;
+  open: () => void;
+  onDelete: () => void;
+  busy?: boolean;
+  draggable?: boolean;
+  stages?: { _id: string; name: string }[];
+  onMove?: (stageId: string) => void;
+}) {
+  const s = useSortable({ id: op._id, disabled: !draggable });
+  return (
+    <article
+      ref={s.setNodeRef}
+      {...(draggable ? s.listeners : {})}
+      title={draggable ? 'Drag to another stage' : undefined}
+      style={{
+        transform: CSS.Transform.toString(s.transform),
+        transition: s.transition,
+        opacity: s.isDragging ? 0.4 : undefined,
+      }}
+      className={`deal-card select-none rounded border bg-white p-3 shadow-sm hover:border-[#0284c7] ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+    >
+      <div className="flex gap-2">
+        {draggable && (
+          <GripVertical
+            size={14}
+            className="mt-0.5 shrink-0 text-slate-400"
+            aria-hidden
+          />
+        )}
+        <button className="flex-1 cursor-[inherit] text-left" onClick={open}>
+          <b className="text-[13px]">{op.title}</b>
+          <p className="text-[11px] text-slate-500">
+            {op.company?.name ?? 'No company'}
+          </p>
+        </button>
+        {op.priority > 0 && <Star size={12} fill="#f59e0b" color="#f59e0b" />}
+        <RowMenu
+          label="Delete deal"
+          busy={busy}
+          onDelete={onDelete}
+          itemsTitle={stages?.length && onMove ? 'Move to stage' : undefined}
+          items={
+            onMove
+              ? (stages ?? []).map((stage) => ({
+                  label: stage.name,
+                  active: stage._id === op.stage._id,
+                  disabled: stage._id === op.stage._id,
+                  onSelect: () => onMove(stage._id),
+                }))
+              : []
+          }
+        />
+      </div>
+      <div className="mt-3 flex items-center">
+        <b className="text-xs">{money(op.expectedRevenue)}</b>
+        <span className="ml-auto text-[10px]">{op.probability}%</span>
+        <Avatar name={op.salesperson?.name} size={23} />
+      </div>
+    </article>
+  );
+}
 
 // Ordered months, one measure. Single series -> one hue, no legend; the pie uses the
 // validated categorical theme and folds anything past 8 slices into "Earlier".
-const SERIES='#0284c7';
-const CATEGORICAL=['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#4a3aa7','#e34948'];
-const monthLabel=(key:string)=>{const[year,month]=key.split('-');return new Date(Number(year),Number(month)-1,1).toLocaleDateString('en-US',{month:'short',year:'numeric'})};
+const SERIES = '#0284c7';
+const CATEGORICAL = [
+  '#2a78d6',
+  '#eb6834',
+  '#1baf7a',
+  '#eda100',
+  '#e87ba4',
+  '#008300',
+  '#4a3aa7',
+  '#e34948',
+];
+const monthLabel = (key: string) => {
+  const [year, month] = key.split('-');
+  return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString(
+    'en-US',
+    { month: 'short', year: 'numeric' },
+  );
+};
 
-function MonthlyPanel(){
-  const [measure,setMeasure]=useState('expectedRevenue');
-  const [view,setView]=useState<'bar'|'pie'|'table'>('bar');
-  const report=useQuery({queryKey:['report','month',measure],queryFn:()=>api<{_id:string;value:number;count:number}[]>(`/reports?dimension=month&measure=${measure}`)});
-  const isCount=measure==='count';
-  const format=(value:number)=>isCount?String(value):money(value);
-  const rows=(report.data??[]).slice().sort((a,b)=>a._id.localeCompare(b._id)).map(row=>({...row,label:monthLabel(row._id)}));
-  const slices=rows.length>8?[{label:'Earlier',value:rows.slice(0,rows.length-7).reduce((sum,row)=>sum+row.value,0),count:0,_id:'earlier'},...rows.slice(-7)]:rows;
-  return <div className="border-b bg-white px-4 py-3">
-    <div className="mb-2 flex flex-wrap items-center gap-2">
-      <h2 className="mr-auto text-sm font-semibold">Opportunities by month</h2>
-      <select className="field w-44" value={measure} onChange={event=>setMeasure(event.target.value)}>
-        <option value="expectedRevenue">Expected revenue</option><option value="proratedRevenue">Prorated revenue</option><option value="count">Opportunity count</option></select>
-      <div className="flex">{(['bar','pie','table'] as const).map(option=><button key={option} onClick={()=>setView(option)} className={`btn rounded-none capitalize ${view===option?'bg-[#e0f2fe] text-[#0284c7]':''}`}>{option}</button>)}</div>
+function MonthlyPanel() {
+  const [measure, setMeasure] = useState('expectedRevenue');
+  const [view, setView] = useState<'bar' | 'pie' | 'table'>('bar');
+  const report = useQuery({
+    queryKey: ['report', 'month', measure],
+    queryFn: () =>
+      api<{ _id: string; value: number; count: number }[]>(
+        `/reports?dimension=month&measure=${measure}`,
+      ),
+  });
+  const isCount = measure === 'count';
+  const format = (value: number) => (isCount ? String(value) : money(value));
+  const rows = (report.data ?? [])
+    .slice()
+    .sort((a, b) => a._id.localeCompare(b._id))
+    .map((row) => ({ ...row, label: monthLabel(row._id) }));
+  const slices =
+    rows.length > 8
+      ? [
+          {
+            label: 'Earlier',
+            value: rows
+              .slice(0, rows.length - 7)
+              .reduce((sum, row) => sum + row.value, 0),
+            count: 0,
+            _id: 'earlier',
+          },
+          ...rows.slice(-7),
+        ]
+      : rows;
+  return (
+    <div className="border-b bg-white px-4 py-3">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <h2 className="mr-auto text-sm font-semibold">
+          Opportunities by month
+        </h2>
+        <select
+          className="field w-44"
+          value={measure}
+          onChange={(event) => setMeasure(event.target.value)}
+        >
+          <option value="expectedRevenue">Expected revenue</option>
+          <option value="proratedRevenue">Prorated revenue</option>
+          <option value="count">Opportunity count</option>
+        </select>
+        <div className="flex">
+          {(['bar', 'pie', 'table'] as const).map((option) => (
+            <button
+              key={option}
+              onClick={() => setView(option)}
+              className={`btn rounded-none capitalize ${view === option ? 'bg-[#e0f2fe] text-[#0284c7]' : ''}`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      </div>
+      {report.isError ? (
+        <QueryError error={report.error} retry={() => report.refetch()} />
+      ) : report.isLoading ? (
+        <div className="h-64">
+          <Loading />
+        </div>
+      ) : !rows.length ? (
+        <p className="flex h-64 items-center justify-center text-xs text-slate-400">
+          No opportunities yet — create one and it will appear here.
+        </p>
+      ) : view === 'table' ? (
+        <div className="max-h-64 overflow-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b text-slate-500">
+              <tr>
+                <th className="p-2">Month</th>
+                <th className="p-2">{isCount ? 'Opportunities' : 'Value'}</th>
+                <th className="p-2">Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr className="border-b" key={row._id}>
+                  <td className="p-2 font-semibold">{row.label}</td>
+                  <td className="p-2">{format(row.value)}</td>
+                  <td className="p-2">{row.count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={256}>
+          {view === 'pie' ? (
+            <PieChart>
+              <Pie
+                data={slices}
+                dataKey="value"
+                nameKey="label"
+                outerRadius={92}
+                label={(entry: any) =>
+                  `${entry.label}: ${format(Number(entry.value))}`
+                }
+              >
+                {slices.map((_, index) => (
+                  <Cell
+                    key={index}
+                    fill={CATEGORICAL[index % CATEGORICAL.length]}
+                    stroke="#ffffff"
+                    strokeWidth={2}
+                  />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value: any) => format(Number(value))} />
+            </PieChart>
+          ) : (
+            <BarChart
+              data={rows}
+              margin={{ top: 8, right: 8, left: 8, bottom: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="#e2e8f0"
+              />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: '#64748b' }}
+                tickLine={false}
+                axisLine={{ stroke: '#e2e8f0' }}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: '#64748b' }}
+                tickLine={false}
+                axisLine={false}
+                width={70}
+                tickFormatter={(value: any) => format(Number(value))}
+              />
+              <Tooltip
+                cursor={{ fill: '#f1f5f9' }}
+                formatter={(value: any) =>
+                  [
+                    format(Number(value)),
+                    isCount ? 'Opportunities' : 'Value',
+                  ] as [string, string]
+                }
+              />
+              <Bar
+                dataKey="value"
+                fill={SERIES}
+                radius={[4, 4, 0, 0]}
+                maxBarSize={46}
+              />
+            </BarChart>
+          )}
+        </ResponsiveContainer>
+      )}
     </div>
-    {report.isLoading?<div className="h-64"><Loading/></div>:!rows.length?<p className="flex h-64 items-center justify-center text-xs text-slate-400">No opportunities yet — create one and it will appear here.</p>
-    :view==='table'?<div className="max-h-64 overflow-auto"><table className="w-full text-left text-xs"><thead className="border-b text-slate-500"><tr><th className="p-2">Month</th><th className="p-2">{isCount?'Opportunities':'Value'}</th><th className="p-2">Count</th></tr></thead><tbody>{rows.map(row=><tr className="border-b" key={row._id}><td className="p-2 font-semibold">{row.label}</td><td className="p-2">{format(row.value)}</td><td className="p-2">{row.count}</td></tr>)}</tbody></table></div>
-    :<ResponsiveContainer width="100%" height={256}>{view==='pie'
-      ?<PieChart><Pie data={slices} dataKey="value" nameKey="label" outerRadius={92} label={(entry:any)=>`${entry.label}: ${format(Number(entry.value))}`}>{slices.map((_,index)=><Cell key={index} fill={CATEGORICAL[index%CATEGORICAL.length]} stroke="#ffffff" strokeWidth={2}/>)}</Pie><Tooltip formatter={(value:any)=>format(Number(value))}/></PieChart>
-      :<BarChart data={rows} margin={{top:8,right:8,left:8,bottom:0}}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/><XAxis dataKey="label" tick={{fontSize:11,fill:'#64748b'}} tickLine={false} axisLine={{stroke:'#e2e8f0'}}/><YAxis tick={{fontSize:11,fill:'#64748b'}} tickLine={false} axisLine={false} width={70} tickFormatter={(value:any)=>format(Number(value))}/><Tooltip cursor={{fill:'#f1f5f9'}} formatter={(value:any)=>[format(Number(value)),isCount?'Opportunities':'Value'] as [string,string]}/><Bar dataKey="value" fill={SERIES} radius={[4,4,0,0]} maxBarSize={46}/></BarChart>}</ResponsiveContainer>}
-  </div>;
+  );
 }

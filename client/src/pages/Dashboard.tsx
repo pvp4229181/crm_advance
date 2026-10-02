@@ -1,39 +1,928 @@
-import {useState,type CSSProperties} from 'react';
-import {useMutation,useQuery} from '@tanstack/react-query';
-import {Link} from 'react-router-dom';
-import {Area,Bar,CartesianGrid,Cell,ComposedChart,Line,Pie,PieChart,ResponsiveContainer,Tooltip,XAxis,YAxis} from 'recharts';
-import {AlertCircle,ArrowRight,BadgeDollarSign,CalendarDays,CheckCircle2,Clock3,ContactRound,Funnel,Moon,Plus,Sparkles,SunMedium,Target,TrendingUp} from 'lucide-react';
-import {api,date,money,moneyShort} from '../lib/api';
-import {useAuth} from '../context/Auth';
-import {useTheme} from '../lib/theme';
-import {Avatar,Empty} from '../components/ui';
-import {useSidebar} from '../components/Shell';
+import { useState, type CSSProperties } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import {
+  Area,
+  Bar,
+  CartesianGrid,
+  Cell,
+  ComposedChart,
+  Line,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import {
+  AlertCircle,
+  ArrowRight,
+  BadgeDollarSign,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  ContactRound,
+  Funnel,
+  Moon,
+  Plus,
+  Sparkles,
+  SunMedium,
+  Target,
+  TrendingUp,
+} from 'lucide-react';
+import { api, date, money, moneyShort } from '../lib/api';
+import { useAuth } from '../context/Auth';
+import { useTheme } from '../lib/theme';
+import { Avatar, Empty } from '../components/ui';
+import { useSidebar } from '../components/Shell';
 
-type Deal={_id:string;title:string;expectedRevenue:number;priority:number;updatedAt:string;stage?:{name:string;color?:string};company?:{name:string};contact?:{name:string};salesperson?:{name:string;avatar?:string}};
-type Data={summary:{totalLeads:number;newLeads:number;pipelineValue:number;wonRevenue:number;won:number;lost:number;conversionRate:number;activitiesToday:number;activitiesOverdue:number};pipeline:{_id:string;value:number;count:number;color?:string}[];monthly:{_id:string;value:number;count:number}[];leadTrend:{_id:string;count:number}[];pipelineDeals:Deal[];recentLeads:{_id:string;title:string;companyName?:string;expectedRevenue:number;status:string;createdAt:string;salesperson?:{name:string};source?:{name:string}}[];sources:{_id:string;leads:number;qualified:number;converted:number}[];attention:{_id:string;summary:string;dueDate:string;relatedModel:string;activityType?:{name:string};assignedTo?:{name:string;avatar?:string}}[]};
-type ActionPlan={overview:string;priorities:{title:string;reason:string;action:string;urgency:'high'|'medium'|'low'}[];provider:string;generatedAt:string};
-const colors=['#2563eb','#34c38f','#f43f5e','#8b5cf6','#fb923c','#eab308','#94a3b8'];
+type Deal = {
+  _id: string;
+  title: string;
+  expectedRevenue: number;
+  priority: number;
+  updatedAt: string;
+  stage?: { name: string; color?: string };
+  company?: { name: string };
+  contact?: { name: string };
+  salesperson?: { name: string; avatar?: string };
+};
+type Data = {
+  summary: {
+    totalLeads: number;
+    newLeads: number;
+    pipelineValue: number;
+    wonRevenue: number;
+    won: number;
+    lost: number;
+    conversionRate: number;
+    activitiesToday: number;
+    activitiesOverdue: number;
+  };
+  pipeline: { _id: string; value: number; count: number; color?: string }[];
+  monthly: { _id: string; value: number; count: number }[];
+  leadTrend: { _id: string; count: number }[];
+  pipelineDeals: Deal[];
+  recentLeads: {
+    _id: string;
+    title: string;
+    companyName?: string;
+    expectedRevenue: number;
+    status: string;
+    createdAt: string;
+    salesperson?: { name: string };
+    source?: { name: string };
+  }[];
+  sources: {
+    _id: string;
+    leads: number;
+    qualified: number;
+    converted: number;
+  }[];
+  attention: {
+    _id: string;
+    summary: string;
+    dueDate: string;
+    relatedModel: string;
+    activityType?: { name: string };
+    assignedTo?: { name: string; avatar?: string };
+  }[];
+};
+type ActionPlan = {
+  overview: string;
+  priorities: {
+    title: string;
+    reason: string;
+    action: string;
+    urgency: 'high' | 'medium' | 'low';
+  }[];
+  provider: string;
+  generatedAt: string;
+};
+const colors = [
+  '#2563eb',
+  '#34c38f',
+  '#f43f5e',
+  '#8b5cf6',
+  '#fb923c',
+  '#eab308',
+  '#94a3b8',
+];
 
-export default function Dashboard(){
- const{user}=useAuth(),[period,setPeriod]=useState('30D');const q=useQuery({queryKey:['dashboard'],queryFn:()=>api<Data>('/dashboard')});const plan=useMutation({mutationFn:()=>api<ActionPlan>('/ai/action-plan',{method:'POST'})});
- const{theme,toggle:toggleTheme}=useTheme();const dark=theme==='dark';const{collapsed}=useSidebar();const first=user?.name?.split(' ')[0]??'there',hour=new Date().getHours(),greeting=hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
- if(q.isLoading)return <Skeleton/>;if(q.isError||!q.data)return <ErrorState retry={()=>q.refetch()}/>;const d=q.data,s=d.summary;
- const cards=[['Total leads',s.totalLeads,ContactRound,'All captured leads','blue',null,'/leads'],['New leads',s.newLeads,TrendingUp,'This month','green',null,'/leads'],['Pipeline value',money(s.pipelineValue),Funnel,'Open opportunities','green',moneyShort(s.pipelineValue),'/pipeline'],['Conversion rate',`${s.conversionRate}%`,Target,'Won vs closed','blue',null,'/pipeline?status=won'],['Revenue',money(s.wonRevenue),BadgeDollarSign,'Won revenue','red',moneyShort(s.wonRevenue),'/pipeline?status=won'],['Won deals',s.won,CheckCircle2,'All time','green',null,'/pipeline?status=won']] as const;
- const months=new Set([...d.monthly.map(x=>x._id),...d.leadTrend.map(x=>x._id)]);const trend=[...months].sort().map(month=>({month:month.slice(5),revenue:d.monthly.find(x=>x._id===month)?.value??0,leads:d.leadTrend.find(x=>x._id===month)?.count??0}));
- return <div className="mx-auto max-w-[1900px] p-3 sm:p-5 xl:pr-[338px]">
-  <header className="mb-4 flex flex-wrap items-end gap-3"><div className="mr-auto"><div className="flex items-center gap-2"><h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-[28px]">{greeting}, {first}</h1><button type="button" onClick={toggleTheme} aria-label={theme==='dark'?'Switch to light mode':'Switch to dark mode'} title={theme==='dark'?'Switch to light mode':'Switch to dark mode'} className="grid h-9 w-9 place-items-center rounded-full transition hover:bg-amber-50 hover:rotate-12">{theme==='dark'?<Moon className="text-sky-400" size={22}/>:<SunMedium className="text-amber-500" size={24}/>}</button></div><p className="mt-1 text-sm text-slate-500">Here&apos;s what&apos;s happening with your sales today.</p></div><div className="flex rounded-lg border bg-white p-1" aria-label="Dashboard period">{['7D','30D','3M','6M','1Y'].map(x=><button key={x} onClick={()=>setPeriod(x)} className={`min-h-8 rounded-md px-3 text-[11px] font-semibold transition-colors ${period===x?'bg-blue-100 text-blue-700':'text-slate-500 hover:bg-slate-50'}`} aria-pressed={period===x}>{x}</button>)}</div><Link className="btn btn-primary" to="/leads?create=1"><Plus size={15}/>New lead</Link></header>
-  <section className="grid grid-cols-2 gap-2.5 md:grid-cols-3 2xl:grid-cols-6">{cards.map(([label,value,Icon,context,tone,short,to])=><Link to={to} title={`Open ${label.toLowerCase()}`} className="panel kpi-card block min-w-0 p-3.5 transition hover:border-[#0284c7] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0284c7]" key={label}><div className="flex items-start gap-3"><span className={`kpi-icon kpi-${tone} grid h-9 w-9 shrink-0 place-items-center rounded-lg ${tone==='green'?'bg-emerald-50 text-emerald-600':tone==='red'?'bg-red-50 text-red-600':'bg-blue-50 text-blue-600'}`}><Icon size={17}/></span><div className="min-w-0 flex-1"><p className="truncate text-[11px] font-medium text-slate-500">{label}</p><p className="mt-0.5 truncate text-xl font-bold tracking-tight text-slate-950" title={short&&!collapsed?String(value):undefined}>{short&&!collapsed?short:value}</p></div></div><p className="mt-2 text-[10px] text-emerald-600">↗ <span className="text-slate-400">{context}</span></p></Link>)}</section>
-  <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(310px,.9fr)]"><Panel title="Leads & revenue overview" action={<span className="flex gap-4 text-[10px] text-slate-500"><i className="flex items-center gap-1 not-italic"><b className="h-2 w-2 rounded-full bg-blue-500"/>Leads</i><i className="flex items-center gap-1 not-italic"><b className="h-2 w-2 rounded-full bg-emerald-500"/>Revenue</i></span>}><div className="p-3" style={{height:245}}>{trend.length?<ResponsiveContainer width="100%" height="100%"><ComposedChart data={trend} margin={{left:-15,right:5,top:8}}><defs><linearGradient id="leadBars" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#60a5fa"/><stop offset="100%" stopColor="#1d4ed8" stopOpacity={0.55}/></linearGradient><linearGradient id="revenueGlow" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#10b981" stopOpacity={0.35}/><stop offset="100%" stopColor="#10b981" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#e9eef5" strokeDasharray="3 3" vertical={false}/><XAxis dataKey="month" tick={{fontSize:10,fill:'#64748b'}} axisLine={false} tickLine={false}/><YAxis yAxisId="left" tick={{fontSize:10,fill:'#64748b'}} axisLine={false} tickLine={false}/><YAxis yAxisId="right" orientation="right" hide/><Tooltip contentStyle={{borderRadius:10,borderColor:'#dbeafe',fontSize:11}} formatter={(v,n)=>[n==='revenue'?money(Number(v)):v,n==='revenue'?'Revenue':'Leads']}/><Bar yAxisId="left" dataKey="leads" fill={dark?'url(#leadBars)':'#82b4ff'} radius={[3,3,0,0]} maxBarSize={26}/>{dark&&<Area yAxisId="right" type="monotone" dataKey="revenue" stroke="none" fill="url(#revenueGlow)" legendType="none" tooltipType="none"/>}<Line className="revenue-line" yAxisId="right" type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2.5} dot={{r:2,fill:'#10b981'}}/></ComposedChart></ResponsiveContainer>:<Empty title="No performance data yet" detail="Lead and revenue trends will appear here."/>}</div></Panel><Panel title="Tasks requiring attention" action={<Link to="/activities" className="text-[11px] font-semibold text-blue-600">View all</Link>}><div>{d.attention.slice(0,4).map(item=><Attention key={item._id} item={item}/>)}{!d.attention.length&&<Empty title="You're all caught up" detail="No planned tasks need attention."/>}</div></Panel></div>
-  <section className="panel mt-3 overflow-hidden"><div className="flex items-center border-b px-4 py-3"><div><h2 className="text-sm font-semibold">Sales pipeline</h2><p className="text-[11px] text-slate-500">Live opportunities grouped by stage</p></div><Link to="/pipeline" className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-blue-600">View full pipeline <ArrowRight size={12}/></Link></div><div className="flex gap-2 overflow-x-auto p-3">{d.pipeline.map((stage,index)=><PipelineColumn key={stage._id} stage={stage} deals={d.pipelineDeals.filter(x=>x.stage?.name===stage._id)} index={index}/>)}{!d.pipeline.length&&<div className="w-full"><Empty title="Your pipeline is empty" detail="Convert a lead or create a deal to get started."/></div>}</div></section>
-  <div className="mt-3 grid gap-3 2xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,.55fr)_minmax(280px,.55fr)]"><Recent items={d.recentLeads}/><Sources items={d.sources} total={s.totalLeads}/><Upcoming items={d.attention}/></div><Priorities items={d.attention} plan={plan}/>
- </div>
+export default function Dashboard() {
+  const { user } = useAuth(),
+    [period, setPeriod] = useState('30D');
+  const q = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: () => api<Data>('/dashboard'),
+  });
+  const plan = useMutation({
+    mutationFn: () => api<ActionPlan>('/ai/action-plan', { method: 'POST' }),
+  });
+  const { theme, toggle: toggleTheme } = useTheme();
+  const dark = theme === 'dark';
+  const { collapsed } = useSidebar();
+  const first = user?.name?.split(' ')[0] ?? 'there',
+    hour = new Date().getHours(),
+    greeting =
+      hour < 12
+        ? 'Good morning'
+        : hour < 18
+          ? 'Good afternoon'
+          : 'Good evening';
+  if (q.isLoading) return <Skeleton />;
+  if (q.isError || !q.data) return <ErrorState retry={() => q.refetch()} />;
+  const d = q.data,
+    s = d.summary;
+  const cards = [
+    [
+      'Total leads',
+      s.totalLeads,
+      ContactRound,
+      'All captured leads',
+      'blue',
+      null,
+      '/leads',
+    ],
+    [
+      'New leads',
+      s.newLeads,
+      TrendingUp,
+      'This month',
+      'green',
+      null,
+      '/leads',
+    ],
+    [
+      'Pipeline value',
+      money(s.pipelineValue),
+      Funnel,
+      'Open opportunities',
+      'green',
+      moneyShort(s.pipelineValue),
+      '/pipeline',
+    ],
+    [
+      'Conversion rate',
+      `${s.conversionRate}%`,
+      Target,
+      'Won vs closed',
+      'blue',
+      null,
+      '/pipeline?status=won',
+    ],
+    [
+      'Revenue',
+      money(s.wonRevenue),
+      BadgeDollarSign,
+      'Won revenue',
+      'red',
+      moneyShort(s.wonRevenue),
+      '/pipeline?status=won',
+    ],
+    [
+      'Won deals',
+      s.won,
+      CheckCircle2,
+      'All time',
+      'green',
+      null,
+      '/pipeline?status=won',
+    ],
+  ] as const;
+  const months = new Set([
+    ...d.monthly.map((x) => x._id),
+    ...d.leadTrend.map((x) => x._id),
+  ]);
+  const trend = [...months].sort().map((month) => ({
+    month: month.slice(5),
+    revenue: d.monthly.find((x) => x._id === month)?.value ?? 0,
+    leads: d.leadTrend.find((x) => x._id === month)?.count ?? 0,
+  }));
+  return (
+    <div className="mx-auto max-w-[1900px] p-3 sm:p-5 xl:pr-[338px]">
+      <header className="mb-4 flex flex-wrap items-end gap-3">
+        <div className="mr-auto">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-[28px]">
+              {greeting}, {first}
+            </h1>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={
+                theme === 'dark'
+                  ? 'Switch to light mode'
+                  : 'Switch to dark mode'
+              }
+              title={
+                theme === 'dark'
+                  ? 'Switch to light mode'
+                  : 'Switch to dark mode'
+              }
+              className="grid h-9 w-9 place-items-center rounded-full transition hover:bg-amber-50 hover:rotate-12"
+            >
+              {theme === 'dark' ? (
+                <Moon className="text-sky-400" size={22} />
+              ) : (
+                <SunMedium className="text-amber-500" size={24} />
+              )}
+            </button>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">
+            Here&apos;s what&apos;s happening with your sales today.
+          </p>
+        </div>
+        <div
+          className="flex rounded-lg border bg-white p-1"
+          aria-label="Dashboard period"
+        >
+          {['7D', '30D', '3M', '6M', '1Y'].map((x) => (
+            <button
+              key={x}
+              onClick={() => setPeriod(x)}
+              className={`min-h-8 rounded-md px-3 text-[11px] font-semibold transition-colors ${period === x ? 'bg-blue-100 text-blue-700' : 'text-slate-500 hover:bg-slate-50'}`}
+              aria-pressed={period === x}
+            >
+              {x}
+            </button>
+          ))}
+        </div>
+        <Link className="btn btn-primary" to="/leads?create=1">
+          <Plus size={15} />
+          New lead
+        </Link>
+      </header>
+      <section className="grid grid-cols-2 gap-2.5 md:grid-cols-3 2xl:grid-cols-6">
+        {cards.map(([label, value, Icon, context, tone, short, to]) => (
+          <Link
+            to={to}
+            title={`Open ${label.toLowerCase()}`}
+            className="panel kpi-card block min-w-0 p-3.5 transition hover:border-[#0284c7] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0284c7]"
+            key={label}
+          >
+            <div className="flex items-start gap-3">
+              <span
+                className={`kpi-icon kpi-${tone} grid h-9 w-9 shrink-0 place-items-center rounded-lg ${tone === 'green' ? 'bg-emerald-50 text-emerald-600' : tone === 'red' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}
+              >
+                <Icon size={17} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-medium text-slate-500">
+                  {label}
+                </p>
+                <p
+                  className="mt-0.5 truncate text-xl font-bold tracking-tight text-slate-950"
+                  title={short && !collapsed ? String(value) : undefined}
+                >
+                  {short && !collapsed ? short : value}
+                </p>
+              </div>
+            </div>
+            <p className="mt-2 text-[10px] text-emerald-600">
+              ↗ <span className="text-slate-400">{context}</span>
+            </p>
+          </Link>
+        ))}
+      </section>
+      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(310px,.9fr)]">
+        <Panel
+          title="Leads & revenue overview"
+          action={
+            <span className="flex gap-4 text-[10px] text-slate-500">
+              <i className="flex items-center gap-1 not-italic">
+                <b className="h-2 w-2 rounded-full bg-blue-500" />
+                Leads
+              </i>
+              <i className="flex items-center gap-1 not-italic">
+                <b className="h-2 w-2 rounded-full bg-emerald-500" />
+                Revenue
+              </i>
+            </span>
+          }
+        >
+          <div className="p-3" style={{ height: 245 }}>
+            {trend.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart
+                  data={trend}
+                  margin={{ left: -15, right: 5, top: 8 }}
+                >
+                  <defs>
+                    <linearGradient id="leadBars" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#60a5fa" />
+                      <stop
+                        offset="100%"
+                        stopColor="#1d4ed8"
+                        stopOpacity={0.55}
+                      />
+                    </linearGradient>
+                    <linearGradient
+                      id="revenueGlow"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor="#10b981"
+                        stopOpacity={0.35}
+                      />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    stroke="#e9eef5"
+                    strokeDasharray="3 3"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 10, fill: '#64748b' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: 10, fill: '#64748b' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis yAxisId="right" orientation="right" hide />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: 10,
+                      borderColor: '#dbeafe',
+                      fontSize: 11,
+                    }}
+                    formatter={(v, n) => [
+                      n === 'revenue' ? money(Number(v)) : v,
+                      n === 'revenue' ? 'Revenue' : 'Leads',
+                    ]}
+                  />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="leads"
+                    fill={dark ? 'url(#leadBars)' : '#82b4ff'}
+                    radius={[3, 3, 0, 0]}
+                    maxBarSize={26}
+                  />
+                  {dark && (
+                    <Area
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="none"
+                      fill="url(#revenueGlow)"
+                      legendType="none"
+                      tooltipType="none"
+                    />
+                  )}
+                  <Line
+                    className="revenue-line"
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#10b981"
+                    strokeWidth={2.5}
+                    dot={{ r: 2, fill: '#10b981' }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            ) : (
+              <Empty
+                title="No performance data yet"
+                detail="Lead and revenue trends will appear here."
+              />
+            )}
+          </div>
+        </Panel>
+        <Panel
+          title="Tasks requiring attention"
+          action={
+            <Link
+              to="/activities"
+              className="text-[11px] font-semibold text-blue-600"
+            >
+              View all
+            </Link>
+          }
+        >
+          <div>
+            {d.attention.slice(0, 4).map((item) => (
+              <Attention key={item._id} item={item} />
+            ))}
+            {!d.attention.length && (
+              <Empty
+                title="You're all caught up"
+                detail="No planned tasks need attention."
+              />
+            )}
+          </div>
+        </Panel>
+      </div>
+      <section className="panel mt-3 overflow-hidden">
+        <div className="flex items-center border-b px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold">Sales pipeline</h2>
+            <p className="text-[11px] text-slate-500">
+              Live opportunities grouped by stage
+            </p>
+          </div>
+          <Link
+            to="/pipeline"
+            className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-blue-600"
+          >
+            View full pipeline <ArrowRight size={12} />
+          </Link>
+        </div>
+        <div className="flex gap-2 overflow-x-auto p-3">
+          {d.pipeline.map((stage, index) => (
+            <PipelineColumn
+              key={stage._id}
+              stage={stage}
+              deals={d.pipelineDeals.filter((x) => x.stage?.name === stage._id)}
+              index={index}
+            />
+          ))}
+          {!d.pipeline.length && (
+            <div className="w-full">
+              <Empty
+                title="Your pipeline is empty"
+                detail="Convert a lead or create a deal to get started."
+              />
+            </div>
+          )}
+        </div>
+      </section>
+      <div className="mt-3 grid gap-3 2xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,.55fr)_minmax(280px,.55fr)]">
+        <Recent items={d.recentLeads} />
+        <Sources items={d.sources} total={s.totalLeads} />
+        <Upcoming items={d.attention} />
+      </div>
+      <Priorities items={d.attention} plan={plan} />
+    </div>
+  );
 }
-function Panel({title,action,children}:{title:string;action?:React.ReactNode;children:React.ReactNode}){return <section className="panel min-w-0 overflow-hidden"><div className="flex min-h-12 items-center border-b px-4"><h2 className="text-sm font-semibold text-slate-900">{title}</h2><div className="ml-auto">{action}</div></div>{children}</section>}
-function Attention({item}:{item:Data['attention'][number]}){const overdue=new Date(item.dueDate)<new Date();return <Link to="/activities" className="flex items-center gap-3 border-b px-4 py-3 last:border-0 hover:bg-slate-50"><span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${overdue?'bg-red-50 text-red-500':'bg-blue-50 text-blue-600'}`}>{overdue?<AlertCircle size={15}/>:<Clock3 size={15}/>}</span><Avatar name={item.assignedTo?.name} size={27}/><span className="min-w-0 flex-1"><b className="block truncate text-[11px]">{item.summary}</b><small className="block truncate text-[10px] text-slate-400">{item.activityType?.name??'Task'}</small></span><span className={`badge ${overdue?'bg-red-50 text-red-600':'bg-amber-50 text-amber-700'}`}>{overdue?'Overdue':'Upcoming'}</span></Link>}
-function PipelineColumn({stage,deals,index}:{stage:Data['pipeline'][number];deals:Deal[];index:number}){const tones=['bg-blue-50','bg-sky-50','bg-violet-50','bg-amber-50','bg-fuchsia-50','bg-emerald-50'];const stageFallback=['#3b82f6','#0ea5e9','#8b5cf6','#f59e0b','#d946ef','#10b981'];return <div className={`pipeline-col w-[245px] shrink-0 rounded-lg p-2 ${tones[index%tones.length]}`} style={{'--stage':stage.color??stageFallback[index%stageFallback.length]} as CSSProperties}><div className="flex items-center px-1 py-1.5"><b className="text-[11px]">{stage._id}</b><span className="badge ml-2 bg-white text-slate-600">{stage.count}</span><span className="ml-auto text-[10px] font-semibold text-slate-500">{money(stage.value)}</span></div><div className="space-y-2">{deals.slice(0,3).map(deal=><Link to={`/opportunities/${deal._id}`} key={deal._id} className="deal-card block rounded-lg border bg-white p-3 shadow-[0_1px_2px_rgb(15_23_42/.04)] transition-colors hover:border-blue-300"><div className="flex gap-2"><Avatar name={deal.contact?.name??deal.title} size={25}/><div className="min-w-0 flex-1"><b className="block truncate text-[11px]">{deal.title}</b><span className="block truncate text-[10px] text-slate-400">{deal.company?.name??'No company'}</span></div></div><div className="mt-2 flex items-center"><b className="text-[11px]">{money(deal.expectedRevenue)}</b><span className={`badge ml-auto ${deal.priority>=3?'bg-red-50 text-red-600':deal.priority===2?'bg-amber-50 text-amber-700':'bg-emerald-50 text-emerald-700'}`}>{deal.priority>=3?'High':deal.priority===2?'Medium':'Low'}</span></div></Link>)}{!deals.length&&<div className="rounded-lg border border-dashed bg-white/60 p-4 text-center text-[10px] text-slate-400">No active deals</div>}</div></div>}
-function Recent({items}:{items:Data['recentLeads']}){return <Panel title="Recent leads" action={<Link to="/leads" className="text-[11px] font-semibold text-blue-600">View all</Link>}><div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-[11px]"><thead className="bg-slate-50 text-slate-500"><tr>{['Lead','Company','Stage','Deal value','Owner','Created'].map(x=><th className="px-4 py-2 font-medium" key={x}>{x}</th>)}</tr></thead><tbody>{items.slice(0,5).map(lead=><tr className="border-t hover:bg-slate-50" key={lead._id}><td className="px-4 py-2.5"><Link className="font-semibold text-slate-900 hover:text-blue-700" to={`/leads/${lead._id}`}>{lead.title}</Link></td><td className="px-4 text-slate-500">{lead.companyName??'—'}</td><td className="px-4"><span className="badge bg-blue-50 capitalize text-blue-700">{lead.status}</span></td><td className="px-4 font-medium">{money(lead.expectedRevenue)}</td><td className="px-4"><span className="flex items-center gap-2"><Avatar name={lead.salesperson?.name} size={23}/>{lead.salesperson?.name??'Unassigned'}</span></td><td className="px-4 text-slate-400">{date(lead.createdAt)}</td></tr>)}</tbody></table>{!items.length&&<Empty title="No leads yet" detail="Add your first lead to start building your pipeline."/>}</div></Panel>}
-function Sources({items,total}:{items:Data['sources'];total:number}){return <Panel title="Lead sources" action={<Link to="/reporting" className="text-[11px] font-semibold text-blue-600">View report</Link>}><div className="grid grid-cols-[130px_1fr] items-center gap-2 p-3"><div className="relative h-32"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={items} dataKey="leads" nameKey="_id" innerRadius={37} outerRadius={56} strokeWidth={2}>{items.map((_,i)=><Cell key={i} fill={colors[i%colors.length]}/>)}</Pie></PieChart></ResponsiveContainer><div className="pointer-events-none absolute inset-0 grid place-content-center text-center"><b className="text-lg">{total}</b><span className="text-[9px] text-slate-400">Total leads</span></div></div><div>{items.slice(0,6).map((x,i)=><div className="flex items-center gap-2 py-1 text-[10px]" key={x._id}><i className="h-2 w-2 rounded-full" style={{background:colors[i%colors.length]}}/><span className="truncate">{x._id}</span><b className="ml-auto">{total?Math.round(x.leads/total*100):0}%</b></div>)}</div></div></Panel>}
-function Upcoming({items}:{items:Data['attention']}){return <Panel title="Upcoming calendar" action={<Link to="/calendar" className="text-[11px] font-semibold text-blue-600">View all</Link>}><div className="p-3">{items.slice(0,4).map(item=><Link to="/calendar" className="flex gap-3 border-l-2 border-blue-400 px-3 py-2 hover:bg-slate-50" key={item._id}><CalendarDays className="mt-0.5 shrink-0 text-blue-500" size={14}/><span className="min-w-0"><b className="block truncate text-[10px]">{item.summary}</b><small className="text-[9px] text-slate-400">{date(item.dueDate)}</small></span></Link>)}{!items.length&&<Empty title="Calendar clear" detail="No upcoming work."/>}</div></Panel>}
-function Priorities({items,plan}:{items:Data['attention'];plan:{data?:ActionPlan;isPending:boolean;isError:boolean;error:Error|null;mutate:()=>void}}){const generated=plan.data?.priorities;return <aside className="panel mt-3 flex overflow-hidden xl:fixed xl:bottom-4 xl:right-4 xl:top-20 xl:mt-0 xl:w-[310px] xl:flex-col"><div className="ai-header flex items-center gap-2 border-b bg-violet-50 px-4 py-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-violet-100 text-violet-600"><Sparkles size={16}/></span><h2 className="text-sm font-semibold">AI Sales Assistant</h2><span className="badge ml-auto bg-blue-50 text-blue-700">Beta</span></div><div className="flex items-center border-b px-4 py-2"><b className="text-[11px]">Today&apos;s priorities</b>{plan.data?<span className="ml-auto text-[9px] capitalize text-slate-400">{plan.data.provider.replace('-',' ')}</span>:<Link to="/activities" className="ml-auto text-[10px] text-blue-600">View all</Link>}</div><div className="min-h-0 flex-1 overflow-y-auto px-3" aria-live="polite">{plan.isPending&&<div className="space-y-3 py-4" aria-label="Generating action plan">{[1,2,3].map(x=><div className="animate-pulse rounded-lg border p-3" key={x}><div className="h-3 w-2/3 rounded bg-slate-200"/><div className="mt-2 h-2 w-full rounded bg-slate-100"/><div className="mt-2 h-2 w-4/5 rounded bg-slate-100"/></div>)}</div>}{plan.isError&&<div className="my-3 rounded-lg border border-red-200 bg-red-50 p-3 text-[11px] text-red-700" role="alert">{plan.error?.message??'Could not generate the action plan.'}</div>}{!plan.isPending&&generated&&<><p className="border-b py-3 text-[10px] leading-relaxed text-slate-500">{plan.data?.overview}</p>{generated.map((item,index)=><article className="flex gap-3 border-b py-3 last:border-0" key={`${item.title}-${index}`}><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-50 text-[10px] font-semibold text-blue-600">{index+1}</span><span className="min-w-0 flex-1"><span className="flex items-start gap-2"><b className="block text-[11px] leading-4">{item.title}</b><i className={`badge ml-auto shrink-0 not-italic ${item.urgency==='high'?'bg-red-50 text-red-600':item.urgency==='medium'?'bg-amber-50 text-amber-700':'bg-emerald-50 text-emerald-700'}`}>{item.urgency}</i></span><span className="mt-1 block text-[10px] leading-4 text-slate-400">{item.reason}</span><span className="mt-1 block text-[11px] font-medium leading-4 text-blue-600">{item.action}</span></span></article>)}</>}{!plan.isPending&&!generated&&items.slice(0,4).map((item,index)=><Link to="/activities" className="flex gap-3 border-b py-3 last:border-0" key={item._id}><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-50 text-[10px] font-semibold text-blue-600">{index+1}</span><span className="min-w-0 flex-1"><b className="block truncate text-[11px]">{item.summary}</b><span className="mt-1 block text-[10px] text-slate-400">Due {date(item.dueDate)}</span><span className="mt-1 flex items-center gap-1 text-[11px] font-medium text-blue-600"><ArrowRight size={11}/>Take action</span></span></Link>)}{!plan.isPending&&!generated&&!items.length&&<Empty title="No urgent priorities" detail="Generate a plan from your live CRM data."/>}</div><div className="border-t p-3"><button type="button" onClick={()=>plan.mutate()} disabled={plan.isPending} className="btn btn-primary btn-ai w-full"><Sparkles size={14}/>{plan.isPending?'Generating plan…':plan.data?'Regenerate plan':'Generate today’s plan'}</button></div></aside>}
-function ErrorState({retry}:{retry:()=>void}){return <div className="p-6"><div className="panel mx-auto max-w-xl p-8 text-center"><AlertCircle className="mx-auto text-red-500"/><h2 className="mt-3 font-semibold">Dashboard unavailable</h2><p className="mt-1 text-sm text-slate-500">We couldn&apos;t load your sales overview.</p><button className="btn mt-4" onClick={retry}>Try again</button></div></div>}
-function Skeleton(){return <div className="animate-pulse p-4 sm:p-6"><div className="mb-5 h-10 w-72 rounded bg-slate-200"/><div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">{Array.from({length:6}).map((_,i)=><div className="h-24 rounded-xl bg-white" key={i}/>)}</div><div className="mt-4 grid gap-3 lg:grid-cols-2"><div className="h-72 rounded-xl bg-white"/><div className="h-72 rounded-xl bg-white"/></div></div>}
+function Panel({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="panel min-w-0 overflow-hidden">
+      <div className="flex min-h-12 items-center border-b px-4">
+        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+        <div className="ml-auto">{action}</div>
+      </div>
+      {children}
+    </section>
+  );
+}
+function Attention({ item }: { item: Data['attention'][number] }) {
+  const overdue = new Date(item.dueDate) < new Date();
+  return (
+    <Link
+      to="/activities"
+      className="flex items-center gap-3 border-b px-4 py-3 last:border-0 hover:bg-slate-50"
+    >
+      <span
+        className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${overdue ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-600'}`}
+      >
+        {overdue ? <AlertCircle size={15} /> : <Clock3 size={15} />}
+      </span>
+      <Avatar name={item.assignedTo?.name} size={27} />
+      <span className="min-w-0 flex-1">
+        <b className="block truncate text-[11px]">{item.summary}</b>
+        <small className="block truncate text-[10px] text-slate-400">
+          {item.activityType?.name ?? 'Task'}
+        </small>
+      </span>
+      <span
+        className={`badge ${overdue ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'}`}
+      >
+        {overdue ? 'Overdue' : 'Upcoming'}
+      </span>
+    </Link>
+  );
+}
+function PipelineColumn({
+  stage,
+  deals,
+  index,
+}: {
+  stage: Data['pipeline'][number];
+  deals: Deal[];
+  index: number;
+}) {
+  const tones = [
+    'bg-blue-50',
+    'bg-sky-50',
+    'bg-violet-50',
+    'bg-amber-50',
+    'bg-fuchsia-50',
+    'bg-emerald-50',
+  ];
+  const stageFallback = [
+    '#3b82f6',
+    '#0ea5e9',
+    '#8b5cf6',
+    '#f59e0b',
+    '#d946ef',
+    '#10b981',
+  ];
+  return (
+    <div
+      className={`pipeline-col w-[245px] shrink-0 rounded-lg p-2 ${tones[index % tones.length]}`}
+      style={
+        {
+          '--stage': stage.color ?? stageFallback[index % stageFallback.length],
+        } as CSSProperties
+      }
+    >
+      <div className="flex items-center px-1 py-1.5">
+        <b className="text-[11px]">{stage._id}</b>
+        <span className="badge ml-2 bg-white text-slate-600">
+          {stage.count}
+        </span>
+        <span className="ml-auto text-[10px] font-semibold text-slate-500">
+          {money(stage.value)}
+        </span>
+      </div>
+      <div className="space-y-2">
+        {deals.slice(0, 3).map((deal) => (
+          <Link
+            to={`/opportunities/${deal._id}`}
+            key={deal._id}
+            className="deal-card block rounded-lg border bg-white p-3 shadow-[0_1px_2px_rgb(15_23_42/.04)] transition-colors hover:border-blue-300"
+          >
+            <div className="flex gap-2">
+              <Avatar name={deal.contact?.name ?? deal.title} size={25} />
+              <div className="min-w-0 flex-1">
+                <b className="block truncate text-[11px]">{deal.title}</b>
+                <span className="block truncate text-[10px] text-slate-400">
+                  {deal.company?.name ?? 'No company'}
+                </span>
+              </div>
+            </div>
+            <div className="mt-2 flex items-center">
+              <b className="text-[11px]">{money(deal.expectedRevenue)}</b>
+              <span
+                className={`badge ml-auto ${deal.priority >= 3 ? 'bg-red-50 text-red-600' : deal.priority === 2 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}
+              >
+                {deal.priority >= 3
+                  ? 'High'
+                  : deal.priority === 2
+                    ? 'Medium'
+                    : 'Low'}
+              </span>
+            </div>
+          </Link>
+        ))}
+        {!deals.length && (
+          <div className="rounded-lg border border-dashed bg-white/60 p-4 text-center text-[10px] text-slate-400">
+            No active deals
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+function Recent({ items }: { items: Data['recentLeads'] }) {
+  return (
+    <Panel
+      title="Recent leads"
+      action={
+        <Link to="/leads" className="text-[11px] font-semibold text-blue-600">
+          View all
+        </Link>
+      }
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[650px] text-left text-[11px]">
+          <thead className="bg-slate-50 text-slate-500">
+            <tr>
+              {[
+                'Lead',
+                'Company',
+                'Stage',
+                'Deal value',
+                'Owner',
+                'Created',
+              ].map((x) => (
+                <th className="px-4 py-2 font-medium" key={x}>
+                  {x}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {items.slice(0, 5).map((lead) => (
+              <tr className="border-t hover:bg-slate-50" key={lead._id}>
+                <td className="px-4 py-2.5">
+                  <Link
+                    className="font-semibold text-slate-900 hover:text-blue-700"
+                    to={`/leads/${lead._id}`}
+                  >
+                    {lead.title}
+                  </Link>
+                </td>
+                <td className="px-4 text-slate-500">
+                  {lead.companyName ?? '—'}
+                </td>
+                <td className="px-4">
+                  <span className="badge bg-blue-50 capitalize text-blue-700">
+                    {lead.status}
+                  </span>
+                </td>
+                <td className="px-4 font-medium">
+                  {money(lead.expectedRevenue)}
+                </td>
+                <td className="px-4">
+                  <span className="flex items-center gap-2">
+                    <Avatar name={lead.salesperson?.name} size={23} />
+                    {lead.salesperson?.name ?? 'Unassigned'}
+                  </span>
+                </td>
+                <td className="px-4 text-slate-400">{date(lead.createdAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!items.length && (
+          <Empty
+            title="No leads yet"
+            detail="Add your first lead to start building your pipeline."
+          />
+        )}
+      </div>
+    </Panel>
+  );
+}
+function Sources({ items, total }: { items: Data['sources']; total: number }) {
+  return (
+    <Panel
+      title="Lead sources"
+      action={
+        <Link
+          to="/reporting"
+          className="text-[11px] font-semibold text-blue-600"
+        >
+          View report
+        </Link>
+      }
+    >
+      <div className="grid grid-cols-[130px_1fr] items-center gap-2 p-3">
+        <div className="relative h-32">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={items}
+                dataKey="leads"
+                nameKey="_id"
+                innerRadius={37}
+                outerRadius={56}
+                strokeWidth={2}
+              >
+                {items.map((_, i) => (
+                  <Cell key={i} fill={colors[i % colors.length]} />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
+            <b className="text-lg">{total}</b>
+            <span className="text-[9px] text-slate-400">Total leads</span>
+          </div>
+        </div>
+        <div>
+          {items.slice(0, 6).map((x, i) => (
+            <div
+              className="flex items-center gap-2 py-1 text-[10px]"
+              key={x._id}
+            >
+              <i
+                className="h-2 w-2 rounded-full"
+                style={{ background: colors[i % colors.length] }}
+              />
+              <span className="truncate">{x._id}</span>
+              <b className="ml-auto">
+                {total ? Math.round((x.leads / total) * 100) : 0}%
+              </b>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+function Upcoming({ items }: { items: Data['attention'] }) {
+  return (
+    <Panel
+      title="Upcoming calendar"
+      action={
+        <Link
+          to="/calendar"
+          className="text-[11px] font-semibold text-blue-600"
+        >
+          View all
+        </Link>
+      }
+    >
+      <div className="p-3">
+        {items.slice(0, 4).map((item) => (
+          <Link
+            to="/calendar"
+            className="flex gap-3 border-l-2 border-blue-400 px-3 py-2 hover:bg-slate-50"
+            key={item._id}
+          >
+            <CalendarDays className="mt-0.5 shrink-0 text-blue-500" size={14} />
+            <span className="min-w-0">
+              <b className="block truncate text-[10px]">{item.summary}</b>
+              <small className="text-[9px] text-slate-400">
+                {date(item.dueDate)}
+              </small>
+            </span>
+          </Link>
+        ))}
+        {!items.length && (
+          <Empty title="Calendar clear" detail="No upcoming work." />
+        )}
+      </div>
+    </Panel>
+  );
+}
+function Priorities({
+  items,
+  plan,
+}: {
+  items: Data['attention'];
+  plan: {
+    data?: ActionPlan;
+    isPending: boolean;
+    isError: boolean;
+    error: Error | null;
+    mutate: () => void;
+  };
+}) {
+  const generated = plan.data?.priorities;
+  return (
+    <aside className="panel mt-3 flex overflow-hidden xl:fixed xl:bottom-4 xl:right-4 xl:top-20 xl:mt-0 xl:w-[310px] xl:flex-col">
+      <div className="ai-header flex items-center gap-2 border-b bg-violet-50 px-4 py-3">
+        <span className="grid h-8 w-8 place-items-center rounded-lg bg-violet-100 text-violet-600">
+          <Sparkles size={16} />
+        </span>
+        <h2 className="text-sm font-semibold">AI Sales Assistant</h2>
+        <span className="badge ml-auto bg-blue-50 text-blue-700">Beta</span>
+      </div>
+      <div className="flex items-center border-b px-4 py-2">
+        <b className="text-[11px]">Today&apos;s priorities</b>
+        {plan.data ? (
+          <span className="ml-auto text-[9px] capitalize text-slate-400">
+            {plan.data.provider.replace('-', ' ')}
+          </span>
+        ) : (
+          <Link to="/activities" className="ml-auto text-[10px] text-blue-600">
+            View all
+          </Link>
+        )}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-3" aria-live="polite">
+        {plan.isPending && (
+          <div className="space-y-3 py-4" aria-label="Generating action plan">
+            {[1, 2, 3].map((x) => (
+              <div className="animate-pulse rounded-lg border p-3" key={x}>
+                <div className="h-3 w-2/3 rounded bg-slate-200" />
+                <div className="mt-2 h-2 w-full rounded bg-slate-100" />
+                <div className="mt-2 h-2 w-4/5 rounded bg-slate-100" />
+              </div>
+            ))}
+          </div>
+        )}
+        {plan.isError && (
+          <div
+            className="my-3 rounded-lg border border-red-200 bg-red-50 p-3 text-[11px] text-red-700"
+            role="alert"
+          >
+            {plan.error?.message ?? 'Could not generate the action plan.'}
+          </div>
+        )}
+        {!plan.isPending && generated && (
+          <>
+            <p className="border-b py-3 text-[10px] leading-relaxed text-slate-500">
+              {plan.data?.overview}
+            </p>
+            {generated.map((item, index) => (
+              <article
+                className="flex gap-3 border-b py-3 last:border-0"
+                key={`${item.title}-${index}`}
+              >
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-50 text-[10px] font-semibold text-blue-600">
+                  {index + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-start gap-2">
+                    <b className="block text-[11px] leading-4">{item.title}</b>
+                    <i
+                      className={`badge ml-auto shrink-0 not-italic ${item.urgency === 'high' ? 'bg-red-50 text-red-600' : item.urgency === 'medium' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}
+                    >
+                      {item.urgency}
+                    </i>
+                  </span>
+                  <span className="mt-1 block text-[10px] leading-4 text-slate-400">
+                    {item.reason}
+                  </span>
+                  <span className="mt-1 block text-[11px] font-medium leading-4 text-blue-600">
+                    {item.action}
+                  </span>
+                </span>
+              </article>
+            ))}
+          </>
+        )}
+        {!plan.isPending &&
+          !generated &&
+          items.slice(0, 4).map((item, index) => (
+            <Link
+              to="/activities"
+              className="flex gap-3 border-b py-3 last:border-0"
+              key={item._id}
+            >
+              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-50 text-[10px] font-semibold text-blue-600">
+                {index + 1}
+              </span>
+              <span className="min-w-0 flex-1">
+                <b className="block truncate text-[11px]">{item.summary}</b>
+                <span className="mt-1 block text-[10px] text-slate-400">
+                  Due {date(item.dueDate)}
+                </span>
+                <span className="mt-1 flex items-center gap-1 text-[11px] font-medium text-blue-600">
+                  <ArrowRight size={11} />
+                  Take action
+                </span>
+              </span>
+            </Link>
+          ))}
+        {!plan.isPending && !generated && !items.length && (
+          <Empty
+            title="No urgent priorities"
+            detail="Generate a plan from your live CRM data."
+          />
+        )}
+      </div>
+      <div className="border-t p-3">
+        <button
+          type="button"
+          onClick={() => plan.mutate()}
+          disabled={plan.isPending}
+          className="btn btn-primary btn-ai w-full"
+        >
+          <Sparkles size={14} />
+          {plan.isPending
+            ? 'Generating plan…'
+            : plan.data
+              ? 'Regenerate plan'
+              : 'Generate today’s plan'}
+        </button>
+      </div>
+    </aside>
+  );
+}
+function ErrorState({ retry }: { retry: () => void }) {
+  return (
+    <div className="p-6">
+      <div className="panel mx-auto max-w-xl p-8 text-center">
+        <AlertCircle className="mx-auto text-red-500" />
+        <h2 className="mt-3 font-semibold">Dashboard unavailable</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          We couldn&apos;t load your sales overview.
+        </p>
+        <button className="btn mt-4" onClick={retry}>
+          Try again
+        </button>
+      </div>
+    </div>
+  );
+}
+function Skeleton() {
+  return (
+    <div className="animate-pulse p-4 sm:p-6">
+      <div className="mb-5 h-10 w-72 rounded bg-slate-200" />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div className="h-24 rounded-xl bg-white" key={i} />
+        ))}
+      </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className="h-72 rounded-xl bg-white" />
+        <div className="h-72 rounded-xl bg-white" />
+      </div>
+    </div>
+  );
+}

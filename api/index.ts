@@ -11,13 +11,19 @@ import { connectDatabase } from '../server/src/config/database.js';
 // fixes, so name them rather than answering "Database unavailable" to all of them.
 // Nothing here echoes the URI, which carries the password.
 function describe(error: any) {
-  if (error?.message === 'MONGODB_URI is required') return 'MONGODB_URI is not set in this deployment environment.';
-  if (error?.name === 'MongoServerError' && /auth/i.test(error.message ?? '')) return 'MongoDB rejected the credentials in MONGODB_URI. Check the database user and password in Atlas.';
-  if (error?.name === 'MongooseServerSelectionError') return 'MongoDB could not be reached before the timeout. Check the cluster state and the Atlas IP access list.';
+  if (error?.message === 'MONGODB_URI is required')
+    return 'MONGODB_URI is not set in this deployment environment.';
+  if (error?.name === 'MongoServerError' && /auth/i.test(error.message ?? ''))
+    return 'MongoDB rejected the credentials in MONGODB_URI. Check the database user and password in Atlas.';
+  if (error?.name === 'MongooseServerSelectionError')
+    return 'MongoDB could not be reached before the timeout. Check the cluster state and the Atlas IP access list.';
   return `MongoDB connection failed: ${error?.name ?? 'Error'}.`;
 }
 
-export default async function handler(request: IncomingMessage, response: ServerResponse) {
+export default async function handler(
+  request: IncomingMessage,
+  response: ServerResponse,
+) {
   try {
     await connectDatabase();
   } catch (error) {
@@ -29,5 +35,7 @@ export default async function handler(request: IncomingMessage, response: Server
     response.end(JSON.stringify({ error: describe(error) }));
     return;
   }
-  return (app as unknown as (req: IncomingMessage, res: ServerResponse) => void)(request, response);
+  return (
+    app as unknown as (req: IncomingMessage, res: ServerResponse) => void
+  )(request, response);
 }

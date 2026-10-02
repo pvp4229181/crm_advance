@@ -1,6 +1,11 @@
-import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import {
   ArrowLeft,
   BriefcaseBusiness,
@@ -13,11 +18,11 @@ import {
   Sparkles,
   StickyNote,
   Trash2,
-} from "lucide-react";
-import { WhatsAppIcon } from "../components/WhatsAppIcon";
-import { api, date, money } from "../lib/api";
-import type { Activity, Lead, Timeline } from "../lib/types";
-import { Avatar, Button, Empty, Loading } from "../components/ui";
+} from 'lucide-react';
+import { WhatsAppIcon } from '../components/WhatsAppIcon';
+import { api, date, money } from '../lib/api';
+import type { Activity, Lead, Timeline } from '../lib/types';
+import { Avatar, Button, Empty, Loading } from '../components/ui';
 
 type LeadProfile = Lead & {
   notes?: string;
@@ -29,8 +34,8 @@ type LeadProfile = Lead & {
 };
 type WhatsAppMessage = {
   _id: string;
-  direction: "inbound" | "outbound";
-  mode: "human" | "ai";
+  direction: 'inbound' | 'outbound';
+  mode: 'human' | 'ai';
   body: string;
   status: string;
   createdAt: string;
@@ -45,14 +50,14 @@ export type WhatsAppSummary = {
   requirements?: string[];
   budget?: string;
   timeline?: string;
-  sentiment?: "positive" | "neutral" | "negative";
+  sentiment?: 'positive' | 'neutral' | 'negative';
   nextStep?: string;
   generatedAt?: string;
 };
 type TemplateOption = {
   _id: string;
   // 'crm' templates are sent as ordinary text; 'meta' ones are Meta-approved and can open a conversation.
-  kind: "meta" | "crm";
+  kind: 'meta' | 'crm';
   name: string;
   language: string;
   category?: string;
@@ -61,7 +66,7 @@ type TemplateOption = {
   missing: string[];
 };
 type WhatsAppConversation = {
-  mode: "human" | "ai";
+  mode: 'human' | 'ai';
   configured: boolean;
   aiConfigured: boolean;
   phone?: string;
@@ -77,31 +82,31 @@ export default function LeadDetail() {
   const { id } = useParams(),
     nav = useNavigate(),
     qc = useQueryClient();
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState('');
   const [params] = useSearchParams();
   const [tab, setTab] = useState<
-    "overview" | "activity" | "whatsapp" | "tasks"
-  >(params.get("tab") === "whatsapp" ? "whatsapp" : "overview");
+    'overview' | 'activity' | 'whatsapp' | 'tasks'
+  >(params.get('tab') === 'whatsapp' ? 'whatsapp' : 'overview');
   const q = useQuery({
-    queryKey: ["lead", id],
+    queryKey: ['lead', id],
     queryFn: () => api<LeadProfile>(`/leads/${id}`),
   });
   const addNote = useMutation({
     mutationFn: () =>
       api(`/timeline/Lead/${id}`, {
-        method: "POST",
-        body: JSON.stringify({ eventType: "note_added", message: note.trim() }),
+        method: 'POST',
+        body: JSON.stringify({ eventType: 'note_added', message: note.trim() }),
       }),
     onSuccess: () => {
-      setNote("");
-      qc.invalidateQueries({ queryKey: ["lead", id] });
+      setNote('');
+      qc.invalidateQueries({ queryKey: ['lead', id] });
     },
   });
   const convert = useMutation({
     mutationFn: () =>
-      api<{ _id: string }>(`/leads/${id}/convert`, { method: "POST" }),
+      api<{ _id: string }>(`/leads/${id}/convert`, { method: 'POST' }),
     onSuccess: (deal) => {
-      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ['leads'] });
       nav(`/opportunities/${deal._id}`);
     },
   });
@@ -114,7 +119,7 @@ export default function LeadDetail() {
           <p className="mt-1 text-sm text-slate-500">
             It may have been removed or you may not have access.
           </p>
-          <Button className="mt-4" onClick={() => nav("/leads")}>
+          <Button className="mt-4" onClick={() => nav('/leads')}>
             Back to leads
           </Button>
         </div>
@@ -122,12 +127,12 @@ export default function LeadDetail() {
     );
   const lead = q.data;
   const temperature =
-    lead.priority >= 3 ? "Hot" : lead.priority === 2 ? "Warm" : "Cold";
+    lead.priority >= 3 ? 'Hot' : lead.priority === 2 ? 'Warm' : 'Cold';
   return (
     <>
       <header className="border-b bg-white px-4 py-4 sm:px-6">
         <div className="flex flex-wrap items-center gap-3">
-          <Button aria-label="Back to leads" onClick={() => nav("/leads")}>
+          <Button aria-label="Back to leads" onClick={() => nav('/leads')}>
             <ArrowLeft size={16} />
           </Button>
           <Avatar name={lead.contactName || lead.title} size={42} />
@@ -137,11 +142,11 @@ export default function LeadDetail() {
               {lead.contactName || lead.title}
             </h1>
             <p className="text-xs text-slate-500">
-              {lead.companyName || "No company"} · {lead.title}
+              {lead.companyName || 'No company'} · {lead.title}
             </p>
           </div>
           <span
-            className={`badge ${temperature === "Hot" ? "bg-red-50 text-red-700" : temperature === "Warm" ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}
+            className={`badge ${temperature === 'Hot' ? 'bg-red-50 text-red-700' : temperature === 'Warm' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}
           >
             {temperature}
           </span>
@@ -176,7 +181,7 @@ export default function LeadDetail() {
           <button
             type="button"
             className="btn"
-            onClick={() => setTab("whatsapp")}
+            onClick={() => setTab('whatsapp')}
           >
             <WhatsAppIcon size={15} /> WhatsApp
           </button>
@@ -190,7 +195,7 @@ export default function LeadDetail() {
             <CalendarPlus size={15} />
             Meeting
           </button>
-          <button className="btn" onClick={() => setTab("activity")}>
+          <button className="btn" onClick={() => setTab('activity')}>
             <StickyNote size={15} />
             Add note
           </button>
@@ -204,14 +209,14 @@ export default function LeadDetail() {
               )
                 return;
               try {
-                await api(`/leads/${id}`, { method: "DELETE" });
-                qc.invalidateQueries({ queryKey: ["leads"] });
-                nav("/leads");
+                await api(`/leads/${id}`, { method: 'DELETE' });
+                qc.invalidateQueries({ queryKey: ['leads'] });
+                nav('/leads');
               } catch (cause) {
                 alert(
                   cause instanceof Error
                     ? cause.message
-                    : "Could not delete this lead.",
+                    : 'Could not delete this lead.',
                 );
               }
             }}
@@ -222,12 +227,12 @@ export default function LeadDetail() {
         </div>
       </header>
       <nav className="flex overflow-x-auto border-b bg-white px-4 sm:px-6">
-        {(["overview", "activity", "whatsapp", "tasks"] as const).map(
+        {(['overview', 'activity', 'whatsapp', 'tasks'] as const).map(
           (item) => (
             <button
               key={item}
               onClick={() => setTab(item)}
-              className={`border-b-2 px-4 py-3 text-xs font-semibold capitalize ${tab === item ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-500"}`}
+              className={`border-b-2 px-4 py-3 text-xs font-semibold capitalize ${tab === item ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500'}`}
             >
               {item}
             </button>
@@ -236,7 +241,7 @@ export default function LeadDetail() {
       </nav>
       <main className="grid gap-5 p-4 sm:p-6 xl:grid-cols-[minmax(0,1fr)_390px]">
         <section>
-          {tab === "overview" && (
+          {tab === 'overview' && (
             <div className="panel overflow-hidden">
               <div className="border-b p-5">
                 <h2 className="font-semibold">Lead information</h2>
@@ -275,11 +280,11 @@ export default function LeadDetail() {
               )}
             </div>
           )}
-          {tab === "activity" && <TimelineList items={lead.timeline} />}{" "}
-          {tab === "whatsapp" && (
+          {tab === 'activity' && <TimelineList items={lead.timeline} />}{' '}
+          {tab === 'whatsapp' && (
             <WhatsAppPanel leadId={lead._id} phone={lead.phone} />
-          )}{" "}
-          {tab === "tasks" && <TaskList items={lead.activities} />}
+          )}{' '}
+          {tab === 'tasks' && <TaskList items={lead.activities} />}
         </section>
         <aside className="panel h-fit overflow-hidden">
           <div className="border-b p-4">
@@ -350,35 +355,33 @@ export function WhatsAppPanel({
   phone?: string;
 }) {
   const qc = useQueryClient();
-  const [message, setMessage] = useState("");
-  const [instruction, setInstruction] = useState("");
-  const [composer, setComposer] = useState<"message" | "template" | null>(
-    null,
-  );
-  const [templateId, setTemplateId] = useState("");
+  const [message, setMessage] = useState('');
+  const [instruction, setInstruction] = useState('');
+  const [composer, setComposer] = useState<'message' | 'template' | null>(null);
+  const [templateId, setTemplateId] = useState('');
   const conversation = useQuery({
-    queryKey: ["lead-whatsapp", leadId],
+    queryKey: ['lead-whatsapp', leadId],
     queryFn: () => api<WhatsAppConversation>(`/leads/${leadId}/whatsapp`),
     // Customer messages arrive through Meta's webhook, so poll while the chat is open to show them without a reload.
     refetchInterval: 5000,
   });
   const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["lead-whatsapp", leadId] });
-    qc.invalidateQueries({ queryKey: ["lead", leadId] });
+    qc.invalidateQueries({ queryKey: ['lead-whatsapp', leadId] });
+    qc.invalidateQueries({ queryKey: ['lead', leadId] });
   };
   const mode = useMutation({
-    mutationFn: (next: "human" | "ai") =>
+    mutationFn: (next: 'human' | 'ai') =>
       api(`/leads/${leadId}/whatsapp/mode`, {
-        method: "PATCH",
+        method: 'PATCH',
         body: JSON.stringify({ mode: next }),
       }),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["lead-whatsapp", leadId] }),
+      qc.invalidateQueries({ queryKey: ['lead-whatsapp', leadId] }),
   });
   const draft = useMutation({
     mutationFn: () =>
       api<{ message: string }>(`/leads/${leadId}/whatsapp/draft`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify({ instruction }),
       }),
     onSuccess: (result) => setMessage(result.message),
@@ -386,22 +389,22 @@ export function WhatsAppPanel({
   const send = useMutation({
     mutationFn: () =>
       api(`/leads/${leadId}/whatsapp/send`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify({
           body: message,
-          mode: conversation.data?.mode ?? "human",
+          mode: conversation.data?.mode ?? 'human',
         }),
       }),
     onSuccess: () => {
-      setMessage("");
-      setInstruction("");
+      setMessage('');
+      setInstruction('');
       refresh();
     },
   });
   const sendTemplate = useMutation({
     mutationFn: (template: string) =>
       api(`/leads/${leadId}/whatsapp/send-template`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify({ template }),
       }),
     onSuccess: refresh,
@@ -409,7 +412,7 @@ export function WhatsAppPanel({
   const summarize = useMutation({
     mutationFn: () =>
       api<WhatsAppSummary>(`/leads/${leadId}/whatsapp/summarize`, {
-        method: "POST",
+        method: 'POST',
       }),
     onSuccess: refresh,
   });
@@ -427,12 +430,13 @@ export function WhatsAppPanel({
     );
   const data = conversation.data;
   const windowClosed = data.window.tracked && !data.window.open;
-  const activeComposer = composer ?? (windowClosed ? "template" : "message");
+  const activeComposer = composer ?? (windowClosed ? 'template' : 'message');
   // CRM templates go out as normal text, so Meta rejects them while the window is closed; only
   // Meta-approved templates can open a conversation. Default to one that can actually be sent.
-  const sendable = (item: TemplateOption) => !(windowClosed && item.kind === "crm");
-  const metaTemplates = data.templates.filter((item) => item.kind !== "crm");
-  const crmTemplates = data.templates.filter((item) => item.kind === "crm");
+  const sendable = (item: TemplateOption) =>
+    !(windowClosed && item.kind === 'crm');
+  const metaTemplates = data.templates.filter((item) => item.kind !== 'crm');
+  const crmTemplates = data.templates.filter((item) => item.kind === 'crm');
   const template =
     data.templates.find((item) => item._id === templateId && sendable(item)) ??
     data.templates.find(sendable) ??
@@ -447,16 +451,16 @@ export function WhatsAppPanel({
       title={
         data.aiConfigured
           ? undefined
-          : "Add OPENROUTER_API_KEY on the server to summarize"
+          : 'Add OPENROUTER_API_KEY on the server to summarize'
       }
       onClick={() => summarize.mutate()}
     >
       <Sparkles size={14} />
       {summarize.isPending
-        ? "Summarizing…"
+        ? 'Summarizing…'
         : data.summary
-          ? "Refresh"
-          : "Summarize"}
+          ? 'Refresh'
+          : 'Summarize'}
     </Button>
   );
   return (
@@ -467,14 +471,14 @@ export function WhatsAppPanel({
         </span>
         <div className="mr-auto">
           <h2 className="font-semibold">WhatsApp conversation</h2>
-          <p className="text-xs text-slate-500">{phone || "No phone number"}</p>
+          <p className="text-xs text-slate-500">{phone || 'No phone number'}</p>
         </div>
         {phone && (
           <a
             className="btn"
             target="_blank"
             rel="noreferrer"
-            href={`https://wa.me/${phone.replace(/\D/g, "")}`}
+            href={`https://wa.me/${phone.replace(/\D/g, '')}`}
           >
             <WhatsAppIcon size={14} />
             Open WhatsApp
@@ -485,16 +489,16 @@ export function WhatsAppPanel({
           aria-label="Conversation mode"
         >
           <button
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold ${data.mode === "human" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500"}`}
-            onClick={() => mode.mutate("human")}
-            aria-pressed={data.mode === "human"}
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold ${data.mode === 'human' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}
+            onClick={() => mode.mutate('human')}
+            aria-pressed={data.mode === 'human'}
           >
             Human
           </button>
           <button
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold ${data.mode === "ai" ? "bg-violet-600 text-white shadow-sm" : "text-slate-500"}`}
-            onClick={() => mode.mutate("ai")}
-            aria-pressed={data.mode === "ai"}
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold ${data.mode === 'ai' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-500'}`}
+            onClick={() => mode.mutate('ai')}
+            aria-pressed={data.mode === 'ai'}
           >
             <Sparkles size={12} className="mr-1 inline" />
             AI bot
@@ -505,20 +509,20 @@ export function WhatsAppPanel({
         <div className="border-b border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
           <b>Meta Cloud API is not configured.</b> AI drafting and mode
           selection work, but CRM sending and automatic replies require the
-          WhatsApp environment variables.{" "}
+          WhatsApp environment variables.{' '}
           {phone && (
             <a
               className="ml-1 font-semibold underline"
               target="_blank"
               rel="noreferrer"
-              href={`https://wa.me/${phone.replace(/\D/g, "")}`}
+              href={`https://wa.me/${phone.replace(/\D/g, '')}`}
             >
               Open WhatsApp manually
             </a>
           )}
         </div>
       )}
-      {data.mode === "ai" && (
+      {data.mode === 'ai' && (
         <div className="border-b bg-violet-50 px-4 py-2 text-xs text-violet-800">
           The AI bot replies using the bot agent settings and this lead&apos;s
           CRM facts. It hands the chat back to a person when asked or when it
@@ -541,22 +545,22 @@ export function WhatsAppPanel({
           const failure = item.metadata?.whatsappStatus?.errors?.[0];
           return (
             <div
-              className={`flex ${item.direction === "outbound" ? "justify-end" : "justify-start"}`}
+              className={`flex ${item.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
               key={item._id}
             >
               <div
-                className={`max-w-[82%] rounded-xl px-3 py-2 text-sm ${item.direction === "outbound" ? "bg-blue-600 text-white" : "border bg-white text-slate-800"}`}
+                className={`max-w-[82%] rounded-xl px-3 py-2 text-sm ${item.direction === 'outbound' ? 'bg-blue-600 text-white' : 'border bg-white text-slate-800'}`}
               >
                 <p className="whitespace-pre-wrap">{item.body}</p>
                 <div
-                  className={`mt-1 flex gap-2 text-[9px] ${item.direction === "outbound" ? "text-blue-100" : "text-slate-400"}`}
+                  className={`mt-1 flex gap-2 text-[9px] ${item.direction === 'outbound' ? 'text-blue-100' : 'text-slate-400'}`}
                 >
                   <span>
-                    {item.mode === "ai"
-                      ? "AI bot"
-                      : item.direction === "outbound"
-                        ? "Human"
-                        : "Lead"}
+                    {item.mode === 'ai'
+                      ? 'AI bot'
+                      : item.direction === 'outbound'
+                        ? 'Human'
+                        : 'Lead'}
                   </span>
                   {item.metadata?.template && (
                     <span>Template {item.metadata.template.name}</span>
@@ -564,7 +568,7 @@ export function WhatsAppPanel({
                   <span>{date(item.createdAt)}</span>
                   <span className="capitalize">{item.status}</span>
                 </div>
-                {item.status === "failed" && failure && (
+                {item.status === 'failed' && failure && (
                   <p className="mt-1 rounded bg-red-50 px-2 py-1 text-[11px] text-red-700">
                     {failure.message || failure.title}
                   </p>
@@ -586,11 +590,11 @@ export function WhatsAppPanel({
             Compose WhatsApp message
           </h3>
           <div className="flex rounded-lg border bg-slate-50 p-1">
-            {(["message", "template"] as const).map((item) => (
+            {(['message', 'template'] as const).map((item) => (
               <button
                 key={item}
                 type="button"
-                className={`rounded-md px-3 py-1 text-xs font-semibold capitalize ${activeComposer === item ? "bg-white text-blue-700 shadow-sm" : "text-slate-500"}`}
+                className={`rounded-md px-3 py-1 text-xs font-semibold capitalize ${activeComposer === item ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}
                 aria-pressed={activeComposer === item}
                 onClick={() => setComposer(item)}
               >
@@ -601,20 +605,20 @@ export function WhatsAppPanel({
         </div>
         {data.window.tracked && (
           <p
-            className={`mb-3 rounded-lg px-3 py-2 text-xs ${windowClosed ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`}
+            className={`mb-3 rounded-lg px-3 py-2 text-xs ${windowClosed ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'}`}
           >
             {windowClosed ? (
               <>
                 This contact hasn&apos;t messaged in the last 24 hours, so
-                WhatsApp only delivers Meta-approved templates.{" "}
+                WhatsApp only delivers Meta-approved templates.{' '}
                 {metaTemplates.length
-                  ? "Send one to restart the chat — once they reply, free-form messages open for 24 hours."
+                  ? 'Send one to restart the chat — once they reply, free-form messages open for 24 hours.'
                   : "You don't have an approved template yet — create one under WhatsApp → Templates and submit it to Meta."}
-                {activeComposer === "message" && metaTemplates.length > 0 && (
+                {activeComposer === 'message' && metaTemplates.length > 0 && (
                   <button
                     type="button"
                     className="ml-2 font-semibold underline"
-                    onClick={() => setComposer("template")}
+                    onClick={() => setComposer('template')}
                   >
                     Choose a template
                   </button>
@@ -625,7 +629,7 @@ export function WhatsAppPanel({
             )}
           </p>
         )}
-        {activeComposer === "message" ? (
+        {activeComposer === 'message' ? (
           <>
             {/* A form so pressing Enter in the instruction drafts, same as clicking the button. */}
             <form
@@ -652,7 +656,7 @@ export function WhatsAppPanel({
                 ) : (
                   <Sparkles size={14} />
                 )}
-                {draft.isPending ? "Drafting…" : "AI draft"}
+                {draft.isPending ? 'Drafting…' : 'AI draft'}
               </Button>
             </form>
             <textarea
@@ -660,9 +664,9 @@ export function WhatsAppPanel({
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               placeholder={
-                data.mode === "ai"
-                  ? "Review or edit the AI-generated reply before sending…"
-                  : "Write a WhatsApp message…"
+                data.mode === 'ai'
+                  ? 'Review or edit the AI-generated reply before sending…'
+                  : 'Write a WhatsApp message…'
               }
             />
           </>
@@ -687,12 +691,16 @@ export function WhatsAppPanel({
                 <optgroup
                   label={
                     windowClosed
-                      ? "CRM · available after the contact replies"
-                      : "CRM · sent as a normal message"
+                      ? 'CRM · available after the contact replies'
+                      : 'CRM · sent as a normal message'
                   }
                 >
                   {crmTemplates.map((item) => (
-                    <option key={item._id} value={item._id} disabled={windowClosed}>
+                    <option
+                      key={item._id}
+                      value={item._id}
+                      disabled={windowClosed}
+                    >
                       {`${item.name} (CRM)`}
                     </option>
                   ))}
@@ -704,24 +712,24 @@ export function WhatsAppPanel({
             </p>
             {template.missing.length > 0 && (
               <p className="mt-2 text-xs text-amber-700">
-                No value for {template.missing.join(", ")}. Fill in this
+                No value for {template.missing.join(', ')}. Fill in this
                 lead&apos;s details
-                {template.kind === "crm"
-                  ? "."
+                {template.kind === 'crm'
+                  ? '.'
                   : ", or map the template's variables under WhatsApp → Templates."}
               </p>
             )}
-            {template.kind === "crm" && (
+            {template.kind === 'crm' && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <p className="mr-auto text-xs text-slate-500">
                   {windowClosed
-                    ? "CRM templates go out as normal messages, so they need the contact to have messaged in the last 24 hours."
-                    : "A CRM template: sent as a normal message, not through Meta."}
+                    ? 'CRM templates go out as normal messages, so they need the contact to have messaged in the last 24 hours.'
+                    : 'A CRM template: sent as a normal message, not through Meta.'}
                 </p>
                 <Button
                   onClick={() => {
                     setMessage(template.preview);
-                    setComposer("message");
+                    setComposer('message');
                   }}
                 >
                   Edit before sending
@@ -732,8 +740,8 @@ export function WhatsAppPanel({
         ) : (
           <p className="rounded-lg border border-dashed p-4 text-center text-xs text-slate-500">
             {data.pendingTemplates
-              ? `${data.pendingTemplates} template${data.pendingTemplates === 1 ? " is" : "s are"} waiting for Meta approval. They appear here as soon as Meta approves them.`
-              : "No templates yet. An administrator can create CRM templates, or Meta-approved ones for new conversations, under WhatsApp → Templates."}
+              ? `${data.pendingTemplates} template${data.pendingTemplates === 1 ? ' is' : 's are'} waiting for Meta approval. They appear here as soon as Meta approves them.`
+              : 'No templates yet. An administrator can create CRM templates, or Meta-approved ones for new conversations, under WhatsApp → Templates.'}
           </p>
         )}
         {error && (
@@ -743,13 +751,13 @@ export function WhatsAppPanel({
         )}
         <div className="mt-2 flex items-center justify-between gap-3">
           <span className="text-[10px] text-slate-400">
-            {activeComposer === "message"
+            {activeComposer === 'message'
               ? `${message.length}/4096 · Messages are never sent without a configured provider.`
-              : template?.kind === "crm"
+              : template?.kind === 'crm'
                 ? "CRM templates are filled with this lead's details and sent as a normal message."
-                : "Templates are pre-approved by Meta and can start a conversation."}
+                : 'Templates are pre-approved by Meta and can start a conversation.'}
           </span>
-          {activeComposer === "message" ? (
+          {activeComposer === 'message' ? (
             <Button
               className="btn-primary"
               disabled={
@@ -762,7 +770,7 @@ export function WhatsAppPanel({
               onClick={() => send.mutate()}
             >
               <Send size={14} />
-              {send.isPending ? "Sending…" : "Send WhatsApp"}
+              {send.isPending ? 'Sending…' : 'Send WhatsApp'}
             </Button>
           ) : (
             <Button
@@ -772,13 +780,13 @@ export function WhatsAppPanel({
                 !phone ||
                 !template ||
                 template.missing.length > 0 ||
-                (template.kind === "crm" && windowClosed) ||
+                (template.kind === 'crm' && windowClosed) ||
                 sendTemplate.isPending
               }
               onClick={() => template && sendTemplate.mutate(template._id)}
             >
               <Send size={14} />
-              {sendTemplate.isPending ? "Sending…" : "Send template"}
+              {sendTemplate.isPending ? 'Sending…' : 'Send template'}
             </Button>
           )}
         </div>
@@ -787,9 +795,9 @@ export function WhatsAppPanel({
   );
 }
 const sentimentStyle = {
-  positive: "bg-emerald-50 text-emerald-700",
-  neutral: "bg-slate-100 text-slate-600",
-  negative: "bg-red-50 text-red-700",
+  positive: 'bg-emerald-50 text-emerald-700',
+  neutral: 'bg-slate-100 text-slate-600',
+  negative: 'bg-red-50 text-red-700',
 };
 export function ConversationSummary({
   summary,
@@ -799,10 +807,10 @@ export function ConversationSummary({
   action?: React.ReactNode;
 }) {
   const facts = [
-    ["Intent", summary.intent],
-    ["Budget", summary.budget],
-    ["Timeline", summary.timeline],
-    ["Next step", summary.nextStep],
+    ['Intent', summary.intent],
+    ['Budget', summary.budget],
+    ['Timeline', summary.timeline],
+    ['Next step', summary.nextStep],
   ].filter(([, value]) => value);
   return (
     <div className="border-b bg-white p-4 last:border-0">
@@ -810,7 +818,9 @@ export function ConversationSummary({
         <Sparkles size={14} className="text-violet-600" />
         <h3 className="text-sm font-semibold">WhatsApp summary</h3>
         {summary.sentiment && (
-          <span className={`badge capitalize ${sentimentStyle[summary.sentiment]}`}>
+          <span
+            className={`badge capitalize ${sentimentStyle[summary.sentiment]}`}
+          >
             {summary.sentiment}
           </span>
         )}
@@ -851,7 +861,7 @@ function Stat({ label, value }: { label: string; value?: string }) {
         {label}
       </div>
       <div className="mt-1 text-sm font-medium capitalize text-slate-800">
-        {value || "—"}
+        {value || '—'}
       </div>
     </div>
   );
@@ -864,7 +874,7 @@ function TimelineList({
   compact?: boolean;
 }) {
   return (
-    <div className={compact ? "" : "panel p-5"}>
+    <div className={compact ? '' : 'panel p-5'}>
       {items.length ? (
         items.map((item) => (
           <div
@@ -876,7 +886,7 @@ function TimelineList({
             </span>
             <div>
               <div className="text-xs">
-                <b>{item.createdBy?.name || "System"}</b>
+                <b>{item.createdBy?.name || 'System'}</b>
                 <span className="ml-2 text-slate-400">
                   {date(item.createdAt)}
                 </span>
@@ -904,9 +914,9 @@ function TaskList({ items }: { items: Activity[] }) {
             key={item._id}
           >
             <span
-              className={`grid h-9 w-9 place-items-center rounded-lg ${item.status === "completed" ? "bg-emerald-50 text-emerald-600" : "bg-indigo-50 text-indigo-600"}`}
+              className={`grid h-9 w-9 place-items-center rounded-lg ${item.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`}
             >
-              {item.status === "completed" ? (
+              {item.status === 'completed' ? (
                 <CheckCircle2 size={17} />
               ) : (
                 <CalendarPlus size={17} />

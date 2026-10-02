@@ -1,11 +1,11 @@
-import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
-import { useAuth } from "./context/Auth";
-import { Shell } from "./components/Shell";
-import { Loading } from "./components/ui";
-import Login from "./pages/Login";
-import { routeChunk } from "./lib/routes";
-import { useRouteSeo } from "./lib/seo";
+import { lazy, Suspense } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { useAuth } from './context/Auth';
+import { Shell } from './components/Shell';
+import { Loading } from './components/ui';
+import Login from './pages/Login';
+import { routeChunk } from './lib/routes';
+import { useRouteSeo } from './lib/seo';
 
 // Every route below is fetched on demand. recharts (Dashboard, Pipeline, Reporting),
 // @dnd-kit (Pipeline) and @tanstack/react-table (Leads) are most of the bundle, and
@@ -13,34 +13,34 @@ import { useRouteSeo } from "./lib/seo";
 // the first thing an unauthenticated visitor sees, so splitting it would only add a
 // round trip before anything renders. Shell warms these same chunks on hover, so a
 // navigation rarely waits on the download.
-const Signup = lazy(() => import("./pages/Signup"));
-const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
-const Dashboard = lazy(routeChunk["/"]);
-const Pipeline = lazy(routeChunk["/pipeline"]);
-const Leads = lazy(routeChunk["/leads"]);
-const LeadImport = lazy(() => import("./pages/LeadImport"));
-const LeadDetail = lazy(() => import("./pages/LeadDetail"));
-const OpportunityDetail = lazy(() => import("./pages/OpportunityDetail"));
+const Signup = lazy(() => import('./pages/Signup'));
+const AcceptInvite = lazy(() => import('./pages/AcceptInvite'));
+const Dashboard = lazy(routeChunk['/']);
+const Pipeline = lazy(routeChunk['/pipeline']);
+const Leads = lazy(routeChunk['/leads']);
+const LeadImport = lazy(() => import('./pages/LeadImport'));
+const LeadDetail = lazy(() => import('./pages/LeadDetail'));
+const OpportunityDetail = lazy(() => import('./pages/OpportunityDetail'));
 const Activities = lazy(() =>
-  routeChunk["/activities"]().then((m) => ({ default: m.Activities })),
+  routeChunk['/activities']().then((m) => ({ default: m.Activities })),
 );
 const Calendar = lazy(() =>
-  routeChunk["/calendar"]().then((m) => ({ default: m.Calendar })),
+  routeChunk['/calendar']().then((m) => ({ default: m.Calendar })),
 );
 const Contacts = lazy(() =>
-  routeChunk["/contacts"]().then((m) => ({ default: m.Contacts })),
+  routeChunk['/contacts']().then((m) => ({ default: m.Contacts })),
 );
-const Reporting = lazy(routeChunk["/reporting"]);
-const Configuration = lazy(routeChunk["/configuration"]);
-const Notifications = lazy(routeChunk["/notifications"]);
+const Reporting = lazy(routeChunk['/reporting']);
+const Configuration = lazy(routeChunk['/configuration']);
+const Notifications = lazy(routeChunk['/notifications']);
 const Inbox = lazy(() =>
-  import("./pages/WorkspaceModules").then((m) => ({ default: m.Inbox })),
+  import('./pages/WorkspaceModules').then((m) => ({ default: m.Inbox })),
 );
-const Automations = lazy(routeChunk["/automation"]);
+const Automations = lazy(routeChunk['/automation']);
 const AIAssistant = lazy(() =>
-  import("./pages/WorkspaceModules").then((m) => ({ default: m.AIAssistant })),
+  import('./pages/WorkspaceModules').then((m) => ({ default: m.AIAssistant })),
 );
-const WhatsAppAutomation = lazy(() => import("./pages/WhatsAppAutomation"));
+const WhatsAppAutomation = lazy(() => import('./pages/WhatsAppAutomation'));
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -78,7 +78,7 @@ export default function App() {
           <Route
             path="/configuration"
             element={
-              ["Administrator", "Sales Manager"].includes(user.role.name) ? (
+              ['Administrator', 'Sales Manager'].includes(user.role.name) ? (
                 <Configuration />
               ) : (
                 <Navigate to="/" />

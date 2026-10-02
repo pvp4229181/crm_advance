@@ -1,31 +1,31 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Search, Smartphone } from "lucide-react";
-import { WhatsAppIcon } from "../components/WhatsAppIcon";
-import { PageHeader } from "../components/Shell";
-import { Avatar, Empty, Loading } from "../components/ui";
-import { api } from "../lib/api";
-import type { Lead, Paged } from "../lib/types";
-import { useAuth } from "../context/Auth";
-import { WhatsAppPanel } from "./LeadDetail";
-import { WhatsAppTemplates } from "./WhatsAppTemplates";
-import { WhatsAppBotSettings } from "./WhatsAppBot";
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Search, Smartphone } from 'lucide-react';
+import { WhatsAppIcon } from '../components/WhatsAppIcon';
+import { PageHeader } from '../components/Shell';
+import { Avatar, Empty, Loading } from '../components/ui';
+import { api } from '../lib/api';
+import type { Lead, Paged } from '../lib/types';
+import { useAuth } from '../context/Auth';
+import { WhatsAppPanel } from './LeadDetail';
+import { WhatsAppTemplates } from './WhatsAppTemplates';
+import { WhatsAppBotSettings } from './WhatsAppBot';
 
 const tabs = {
-  conversations: "Conversations",
-  templates: "Templates",
-  bot: "Bot agent",
+  conversations: 'Conversations',
+  templates: 'Templates',
+  bot: 'Bot agent',
 } as const;
 
 export default function WhatsAppAutomation() {
   const { user } = useAuth();
-  const isAdmin = user?.role.name === "Administrator";
-  const [tab, setTab] = useState<keyof typeof tabs>("conversations");
-  const [search, setSearch] = useState("");
-  const [selectedId, setSelectedId] = useState("");
+  const isAdmin = user?.role.name === 'Administrator';
+  const [tab, setTab] = useState<keyof typeof tabs>('conversations');
+  const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState('');
   const leads = useQuery({
-    queryKey: ["whatsapp-leads"],
-    queryFn: () => api<Paged<Lead>>("/leads?page=1&limit=100"),
+    queryKey: ['whatsapp-leads'],
+    queryFn: () => api<Paged<Lead>>('/leads?page=1&limit=100'),
   });
   const available = useMemo(
     () =>
@@ -62,27 +62,29 @@ export default function WhatsAppAutomation() {
             type="button"
             aria-pressed={tab === item}
             onClick={() => setTab(item)}
-            className={`border-b-2 px-4 py-3 text-xs font-semibold ${tab === item ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-500"}`}
+            className={`border-b-2 px-4 py-3 text-xs font-semibold ${tab === item ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500'}`}
           >
             {tabs[item]}
           </button>
         ))}
       </nav>
-      {tab === "templates" && (
+      {tab === 'templates' && (
         <div className="p-4 sm:p-6">
           <WhatsAppTemplates isAdmin={isAdmin} />
         </div>
       )}
-      {tab === "bot" && (
+      {tab === 'bot' && (
         <div className="p-4 sm:p-6">
           <WhatsAppBotSettings isAdmin={isAdmin} />
         </div>
       )}
-      {tab === "conversations" && (
+      {tab === 'conversations' && (
         <div className="grid min-h-[calc(100vh-145px)] gap-4 p-4 sm:p-6 lg:grid-cols-[300px_minmax(0,1fr)]">
           <aside className="panel h-fit overflow-hidden lg:sticky lg:top-20">
             <div className="border-b p-4">
-              <h2 className="font-semibold text-slate-900">Lead conversations</h2>
+              <h2 className="font-semibold text-slate-900">
+                Lead conversations
+              </h2>
               <p className="mt-1 text-xs text-slate-500">
                 Select a lead to open their WhatsApp chat.
               </p>
@@ -112,7 +114,7 @@ export default function WhatsAppAutomation() {
                       type="button"
                       onClick={() => setSelectedId(lead._id)}
                       aria-pressed={active}
-                      className={`mb-1 flex min-h-16 w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors ${active ? "bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200" : "hover:bg-slate-50"}`}
+                      className={`mb-1 flex min-h-16 w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors ${active ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200' : 'hover:bg-slate-50'}`}
                     >
                       <Avatar name={lead.contactName || lead.title} size={34} />
                       <span className="min-w-0 flex-1">

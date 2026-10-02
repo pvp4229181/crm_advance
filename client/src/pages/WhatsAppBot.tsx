@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot } from "lucide-react";
-import { Button, Loading } from "../components/ui";
-import { api } from "../lib/api";
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Bot } from 'lucide-react';
+import { Button, Loading } from '../components/ui';
+import { api } from '../lib/api';
 
 type BotSettings = {
   enabled: boolean;
@@ -18,8 +18,8 @@ type BotSettings = {
 
 export function WhatsAppBotSettings({ isAdmin }: { isAdmin: boolean }) {
   const settings = useQuery({
-    queryKey: ["whatsapp-bot"],
-    queryFn: () => api<BotSettings>("/whatsapp/bot"),
+    queryKey: ['whatsapp-bot'],
+    queryFn: () => api<BotSettings>('/whatsapp/bot'),
   });
   if (settings.isLoading)
     return (
@@ -28,24 +28,37 @@ export function WhatsAppBotSettings({ isAdmin }: { isAdmin: boolean }) {
       </div>
     );
   if (settings.isError || !settings.data)
-    return <div className="panel p-6 text-sm text-red-700">Could not load the bot settings.</div>;
+    return (
+      <div className="panel p-6 text-sm text-red-700">
+        Could not load the bot settings.
+      </div>
+    );
   return <BotForm initial={settings.data} isAdmin={isAdmin} />;
 }
 
-function BotForm({ initial, isAdmin }: { initial: BotSettings; isAdmin: boolean }) {
+function BotForm({
+  initial,
+  isAdmin,
+}: {
+  initial: BotSettings;
+  isAdmin: boolean;
+}) {
   const qc = useQueryClient();
   const [form, setForm] = useState(initial);
-  const [keywords, setKeywords] = useState(initial.handoffKeywords.join(", "));
+  const [keywords, setKeywords] = useState(initial.handoffKeywords.join(', '));
   const save = useMutation({
     mutationFn: () =>
-      api<BotSettings>("/whatsapp/bot", {
-        method: "PUT",
+      api<BotSettings>('/whatsapp/bot', {
+        method: 'PUT',
         body: JSON.stringify({
           ...form,
-          handoffKeywords: keywords.split(",").map((word) => word.trim()).filter(Boolean),
+          handoffKeywords: keywords
+            .split(',')
+            .map((word) => word.trim())
+            .filter(Boolean),
         }),
       }),
-    onSuccess: (saved) => qc.setQueryData(["whatsapp-bot"], saved),
+    onSuccess: (saved) => qc.setQueryData(['whatsapp-bot'], saved),
   });
   const set = (patch: Partial<BotSettings>) => {
     save.reset();
@@ -73,7 +86,12 @@ function BotForm({ initial, isAdmin }: { initial: BotSettings; isAdmin: boolean 
         <div className="grid gap-4 sm:grid-cols-2">
           <label>
             <span className="label">Business name</span>
-            <input className="field" value={form.businessName} onChange={(event) => set({ businessName: event.target.value })} maxLength={120} />
+            <input
+              className="field"
+              value={form.businessName}
+              onChange={(event) => set({ businessName: event.target.value })}
+              maxLength={120}
+            />
           </label>
           <label>
             <span className="label">Persona and tone</span>
@@ -103,7 +121,9 @@ function BotForm({ initial, isAdmin }: { initial: BotSettings; isAdmin: boolean 
             value={form.faq}
             onChange={(event) => set({ faq: event.target.value })}
             maxLength={6000}
-            placeholder={"Q: Do you offer installation?\nA: Yes, installation is included in every city we serve."}
+            placeholder={
+              'Q: Do you offer installation?\nA: Yes, installation is included in every city we serve.'
+            }
           />
         </label>
         <label className="block">
@@ -127,7 +147,9 @@ function BotForm({ initial, isAdmin }: { initial: BotSettings; isAdmin: boolean 
               }}
               placeholder="human, agent, call me"
             />
-            <span className="mt-1 block text-[11px] text-slate-400">Comma-separated words or phrases.</span>
+            <span className="mt-1 block text-[11px] text-slate-400">
+              Comma-separated words or phrases.
+            </span>
           </label>
           <label>
             <span className="label">Handoff reply</span>
@@ -147,7 +169,9 @@ function BotForm({ initial, isAdmin }: { initial: BotSettings; isAdmin: boolean 
             onChange={(event) => set({ autoSummarize: event.target.checked })}
           />
           <span>
-            <b className="block text-sm">Summarize conversations into the CRM</b>
+            <b className="block text-sm">
+              Summarize conversations into the CRM
+            </b>
             <span className="text-xs text-slate-500">
               Saves a summary, intent, requirements, budget and next step on the
               lead after every few messages and on each handoff.
@@ -156,10 +180,20 @@ function BotForm({ initial, isAdmin }: { initial: BotSettings; isAdmin: boolean 
         </label>
         {isAdmin && (
           <div className="flex items-center justify-end gap-3 border-t pt-4">
-            {save.isError && <span className="mr-auto text-xs text-red-700">{save.error.message}</span>}
-            {save.isSuccess && <span className="mr-auto text-xs text-emerald-700">Saved.</span>}
-            <Button className="btn-primary" disabled={save.isPending} onClick={() => save.mutate()}>
-              {save.isPending ? "Saving…" : "Save bot settings"}
+            {save.isError && (
+              <span className="mr-auto text-xs text-red-700">
+                {save.error.message}
+              </span>
+            )}
+            {save.isSuccess && (
+              <span className="mr-auto text-xs text-emerald-700">Saved.</span>
+            )}
+            <Button
+              className="btn-primary"
+              disabled={save.isPending}
+              onClick={() => save.mutate()}
+            >
+              {save.isPending ? 'Saving…' : 'Save bot settings'}
             </Button>
           </div>
         )}
@@ -170,12 +204,28 @@ function BotForm({ initial, isAdmin }: { initial: BotSettings; isAdmin: boolean 
         </span>
         <h2 className="mt-3 font-semibold text-slate-900">How the bot works</h2>
         <ul className="mt-2 list-disc space-y-2 pl-4 text-xs">
-          <li>It only replies to leads switched to AI bot mode on their WhatsApp tab.</li>
-          <li>Replies use these settings, the lead&apos;s CRM details and the last 12 messages. It is told not to invent prices, dates or promises.</li>
-          <li>When a customer uses a handoff phrase, or the bot can&apos;t answer, the lead switches to Human mode and its owner is notified.</li>
-          <li>Bot replies go out as free-form text, which WhatsApp allows within 24 hours of the customer&apos;s last message.</li>
+          <li>
+            It only replies to leads switched to AI bot mode on their WhatsApp
+            tab.
+          </li>
+          <li>
+            Replies use these settings, the lead&apos;s CRM details and the last
+            12 messages. It is told not to invent prices, dates or promises.
+          </li>
+          <li>
+            When a customer uses a handoff phrase, or the bot can&apos;t answer,
+            the lead switches to Human mode and its owner is notified.
+          </li>
+          <li>
+            Bot replies go out as free-form text, which WhatsApp allows within
+            24 hours of the customer&apos;s last message.
+          </li>
         </ul>
-        {!isAdmin && <p className="mt-4 rounded-lg bg-slate-50 p-3 text-xs">Only administrators can change these settings.</p>}
+        {!isAdmin && (
+          <p className="mt-4 rounded-lg bg-slate-50 p-3 text-xs">
+            Only administrators can change these settings.
+          </p>
+        )}
       </aside>
     </div>
   );

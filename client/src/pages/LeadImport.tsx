@@ -1,30 +1,31 @@
-import { useMemo, useState } from "react";
+import { parseCsv, csvCell } from '../lib/csv';
+import { useMemo, useState } from 'react';
 import {
   ArrowLeft,
   CheckCircle2,
   Download,
   FileSpreadsheet,
   Upload,
-} from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { api } from "../lib/api";
-import { Button } from "../components/ui";
-import { PageHeader } from "../components/Shell";
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../lib/api';
+import { Button } from '../components/ui';
+import { PageHeader } from '../components/Shell';
 
 type Field =
-  | "title"
-  | "contactName"
-  | "companyName"
-  | "email"
-  | "phone"
-  | "expectedRevenue"
-  | "priority"
-  | "notes";
+  | 'title'
+  | 'contactName'
+  | 'companyName'
+  | 'email'
+  | 'phone'
+  | 'expectedRevenue'
+  | 'priority'
+  | 'notes';
 type ReviewRow = {
   row: number;
   data: Record<string, unknown>;
   errors: string[];
-  duplicate: boolean;
+  duplicate?: { title: string };
 };
 type Review = {
   total: number;
@@ -35,116 +36,91 @@ type Review = {
   rows: ReviewRow[];
 };
 const fields: { value: Field; label: string }[] = [
-  { value: "title", label: "Lead title (required)" },
-  { value: "contactName", label: "Contact name" },
-  { value: "companyName", label: "Company" },
-  { value: "email", label: "Email" },
-  { value: "phone", label: "Phone" },
-  { value: "expectedRevenue", label: "Expected revenue" },
-  { value: "priority", label: "Priority (0–3)" },
-  { value: "notes", label: "Notes" },
+  { value: 'title', label: 'Lead title (required)' },
+  { value: 'contactName', label: 'Contact name' },
+  { value: 'companyName', label: 'Company' },
+  { value: 'email', label: 'Email' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'expectedRevenue', label: 'Expected revenue' },
+  { value: 'priority', label: 'Priority (0–3)' },
+  { value: 'notes', label: 'Notes' },
 ];
 
-function parseCsv(text: string) {
-  const table: string[][] = [];
-  let row: string[] = [],
-    cell = "",
-    quoted = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (c === '"') {
-      if (quoted && text[i + 1] === '"') {
-        cell += '"';
-        i++;
-      } else quoted = !quoted;
-    } else if (c === "," && !quoted) {
-      row.push(cell.trim());
-      cell = "";
-    } else if ((c === "\n" || c === "\r") && !quoted) {
-      if (c === "\r" && text[i + 1] === "\n") i++;
-      row.push(cell.trim());
-      if (row.some(Boolean)) table.push(row);
-      row = [];
-      cell = "";
-    } else cell += c;
-  }
-  row.push(cell.trim());
-  if (row.some(Boolean)) table.push(row);
-  const [headers = [], ...values] = table;
-  return {
-    headers: headers.map((h, i) => h || `Column ${i + 1}`),
-    rows: values.map((values) =>
-      Object.fromEntries(
-        headers.map((h, i) => [h || `Column ${i + 1}`, values[i] ?? ""]),
-      ),
-    ),
-  };
-}
-function guess(header: string): Field | "" {
-  const h = header.toLowerCase().replace(/[^a-z]/g, "");
-  if (/^(title|lead|leadname|subject)$/.test(h)) return "title";
-  if (/^(name|contact|contactname|customer)$/.test(h)) return "contactName";
+function guess(header: string): Field | '' {
+  const h = header.toLowerCase().replace(/[^a-z]/g, '');
+  if (/^(title|lead|leadname|subject)$/.test(h)) return 'title';
+  if (/^(name|contact|contactname|customer)$/.test(h)) return 'contactName';
   if (/^(company|companyname|organization|organisation)$/.test(h))
-    return "companyName";
-  if (h.includes("email")) return "email";
-  if (/(phone|mobile|telephone)/.test(h)) return "phone";
-  if (/(revenue|value|amount|dealvalue)/.test(h)) return "expectedRevenue";
-  if (h.includes("priority")) return "priority";
-  if (/(note|description|comment)/.test(h)) return "notes";
-  return "";
+    return 'companyName';
+  if (h.includes('email')) return 'email';
+  if (/(phone|mobile|telephone)/.test(h)) return 'phone';
+  if (/(revenue|value|amount|dealvalue)/.test(h)) return 'expectedRevenue';
+  if (h.includes('priority')) return 'priority';
+  if (/(note|description|comment)/.test(h)) return 'notes';
+  return '';
 }
-function csvCell(value: unknown) {
-  return `"${String(value ?? "").replaceAll('"', '""')}"`;
-}
-
 export default function LeadImport() {
   const nav = useNavigate();
-  const [fileName, setFileName] = useState("");
+  const [fileName, setFileName] = useState('');
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, string>[]>([]);
-  const [mapping, setMapping] = useState<Record<string, Field | "">>({});
+  const [mapping, setMapping] = useState<Record<string, Field | ''>>({});
   const [review, setReview] = useState<Review | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const titleMapped = Object.values(mapping).includes("title");
+  const [error, setError] = useState('');
+  const titleMapped = Object.values(mapping).includes('title');
   const used = useMemo(
     () => new Set(Object.values(mapping).filter(Boolean)),
     [mapping],
   );
   async function load(file?: File) {
     if (!file) return;
-    setError("");
+    setError('');
     setReview(null);
+    setFileName('');
+    setHeaders([]);
+    setRows([]);
+    setMapping({});
     try {
       const parsed = parseCsv(await file.text());
       if (!parsed.headers.length || !parsed.rows.length)
         throw new Error(
-          "The CSV must include a header and at least one data row.",
+          'The CSV must include a header and at least one data row.',
         );
       if (parsed.rows.length > 2000)
-        throw new Error("Import files are limited to 2,000 rows.");
+        throw new Error('Import files are limited to 2,000 rows.');
       setFileName(file.name);
       setHeaders(parsed.headers);
       setRows(parsed.rows);
-      setMapping(Object.fromEntries(parsed.headers.map((h) => [h, guess(h)])));
+      const assigned = new Set<Field>();
+      setMapping(
+        Object.fromEntries(
+          parsed.headers.map((h) => {
+            const field = guess(h);
+            if (!field || assigned.has(field)) return [h, ''];
+            assigned.add(field);
+            return [h, field];
+          }),
+        ),
+      );
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "Could not read this CSV file.",
+        e instanceof Error ? e.message : 'Could not read this CSV file.',
       );
     }
   }
   async function submit(confirm = false) {
     setBusy(true);
-    setError("");
+    setError('');
     try {
       setReview(
-        await api<Review>("/leads/import", {
-          method: "POST",
+        await api<Review>('/leads/import', {
+          method: 'POST',
           body: JSON.stringify({ rows, mapping, confirm }),
         }),
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Import request failed.");
+      setError(e instanceof Error ? e.message : 'Import request failed.');
     } finally {
       setBusy(false);
     }
@@ -153,23 +129,23 @@ export default function LeadImport() {
     if (!review) return;
     const failed = review.rows.filter((r) => r.errors.length || r.duplicate);
     const lines = [
-      ["CSV row", "Reason", ...headers],
+      ['CSV row', 'Reason', ...headers],
       ...failed.map((r) => [
         r.row,
-        [...r.errors, r.duplicate ? "Duplicate" : ""]
+        [...r.errors, r.duplicate ? `Duplicate: ${r.duplicate.title}` : '']
           .filter(Boolean)
-          .join("; "),
-        ...headers.map((h) => rows[r.row - 2]?.[h] ?? ""),
+          .join('; '),
+        ...headers.map((h) => rows[r.row - 2]?.[h] ?? ''),
       ]),
     ];
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = URL.createObjectURL(
       new Blob(
-        [lines.map((line) => line.map(csvCell).join(",")).join("\r\n")],
-        { type: "text/csv" },
+        [lines.map((line) => line.map(csvCell).join(',')).join('\r\n')],
+        { type: 'text/csv' },
       ),
     );
-    a.download = "lead-import-errors.csv";
+    a.download = 'lead-import-errors.csv';
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -179,7 +155,7 @@ export default function LeadImport() {
         title="Import leads"
         subtitle="Upload, map, validate, and safely import CSV data"
       >
-        <Button onClick={() => nav("/leads")}>
+        <Button onClick={() => nav('/leads')}>
           <ArrowLeft size={15} />
           Back to leads
         </Button>
@@ -203,12 +179,16 @@ export default function LeadImport() {
             </a>
             <label className="btn btn-primary cursor-pointer">
               <Upload size={15} />
-              {fileName ? "Replace file" : "Select CSV"}
+              {fileName ? 'Replace file' : 'Select CSV'}
               <input
                 className="sr-only"
                 type="file"
                 accept=".csv,text/csv"
-                onChange={(e) => load(e.target.files?.[0])}
+                disabled={busy}
+                onChange={(e) => {
+                  void load(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
               />
             </label>
           </div>
@@ -235,12 +215,13 @@ export default function LeadImport() {
                   </span>
                   <select
                     className="field"
-                    value={mapping[h] ?? ""}
+                    disabled={busy}
+                    value={mapping[h] ?? ''}
                     onChange={(e) => {
                       setReview(null);
                       setMapping((m) => ({
                         ...m,
-                        [h]: e.target.value as Field | "",
+                        [h]: e.target.value as Field | '',
                       }));
                     }}
                   >
@@ -291,7 +272,7 @@ export default function LeadImport() {
                 disabled={!titleMapped || busy}
                 onClick={() => submit(false)}
               >
-                {busy ? "Checking…" : "Review import"}
+                {busy ? 'Checking…' : 'Review import'}
               </Button>
             </div>
           </section>
@@ -322,6 +303,31 @@ export default function LeadImport() {
                     duplicate rows were not added.
                   </p>
                 )}
+                {review.rows.some((r) => r.errors.length || r.duplicate) && (
+                  <ul
+                    className="mt-4 max-h-60 overflow-y-auto rounded-lg border p-3 text-sm"
+                    aria-label="Import issues"
+                  >
+                    {review.rows
+                      .filter((r) => r.errors.length || r.duplicate)
+                      .slice(0, 50)
+                      .map((r) => (
+                        <li key={r.row} className="py-1">
+                          Row {r.row}:{' '}
+                          {[
+                            ...r.errors,
+                            ...(r.duplicate
+                              ? [`Duplicate: ${r.duplicate.title}`]
+                              : []),
+                          ].join('; ')}
+                        </li>
+                      ))}
+                    <li className="pt-2 text-xs text-slate-500">
+                      Showing up to 50 issues. Download the report for all
+                      affected rows.
+                    </li>
+                  </ul>
+                )}
                 <div className="mt-4 flex flex-wrap gap-2">
                   {(review.invalid > 0 || review.duplicates > 0) && (
                     <Button onClick={downloadErrors}>
@@ -336,14 +342,14 @@ export default function LeadImport() {
                       onClick={() => submit(true)}
                     >
                       {busy
-                        ? "Importing…"
+                        ? 'Importing…'
                         : `Import ${review.valid} valid leads`}
                     </Button>
                   )}
                   {review.imported !== undefined && (
                     <Button
                       className="btn-primary"
-                      onClick={() => nav("/leads")}
+                      onClick={() => nav('/leads')}
                     >
                       View leads
                     </Button>
@@ -354,7 +360,10 @@ export default function LeadImport() {
           </section>
         )}
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div
+            role="alert"
+            className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          >
             {error}
           </div>
         )}
@@ -373,7 +382,7 @@ function Metric({
 }) {
   return (
     <div
-      className={`rounded-lg border p-3 ${warn ? "border-amber-200 bg-amber-50" : "bg-slate-50"}`}
+      className={`rounded-lg border p-3 ${warn ? 'border-amber-200 bg-amber-50' : 'bg-slate-50'}`}
     >
       <div className="text-2xl font-semibold">{value}</div>
       <div className="text-xs text-slate-500">{label}</div>

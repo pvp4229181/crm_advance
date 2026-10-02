@@ -1,6 +1,14 @@
-import { createContext, useContext, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart3,
   Bell,
@@ -24,43 +32,51 @@ import {
   UsersRound,
   Workflow,
   X,
-} from "lucide-react";
-import { WhatsAppIcon } from "./WhatsAppIcon";
-import { useAuth } from "../context/Auth";
-import { api, money } from "../lib/api";
-import type { Lead, Opportunity, Paged } from "../lib/types";
-import { prefetchRoute, warmRouteChunks } from "../lib/routes";
-import { Avatar } from "./ui";
+} from 'lucide-react';
+import { WhatsAppIcon } from './WhatsAppIcon';
+import { useAuth } from '../context/Auth';
+import { api, money } from '../lib/api';
+import type { Lead, Opportunity, Paged } from '../lib/types';
+import { prefetchRoute, warmRouteChunks } from '../lib/routes';
+import { Avatar } from './ui';
 
 // Each item carries its icon colour for the light and dark themes.
 const groups = [
-  { label: "", items: [["Dashboard", "/", Gauge, "#2563eb", "#60a5fa"]] },
+  { label: '', items: [['Dashboard', '/', Gauge, '#2563eb', '#60a5fa']] },
   {
-    label: "Sales",
+    label: 'Sales',
     items: [
-      ["Leads", "/leads", ContactRound, "#7c3aed", "#a78bfa"],
-      ["Pipeline", "/pipeline", KanbanSquare, "#ea580c", "#fb923c"],
-      ["Contacts & companies", "/contacts", UsersRound, "#0d9488", "#2dd4bf"],
+      ['Leads', '/leads', ContactRound, '#7c3aed', '#a78bfa'],
+      ['Pipeline', '/pipeline', KanbanSquare, '#ea580c', '#fb923c'],
+      ['Contacts & companies', '/contacts', UsersRound, '#0d9488', '#2dd4bf'],
     ],
   },
   {
-    label: "Work",
+    label: 'Work',
     items: [
-      ["Activities", "/activities", ClipboardCheck, "#059669", "#34d399"],
-      ["Calendar", "/calendar", CalendarDays, "#e11d48", "#fb7185"],
-      ["Inbox", "/inbox", Mail, "#0284c7", "#38bdf8"],
+      ['Activities', '/activities', ClipboardCheck, '#059669', '#34d399'],
+      ['Calendar', '/calendar', CalendarDays, '#e11d48', '#fb7185'],
+      ['Inbox', '/inbox', Mail, '#0284c7', '#38bdf8'],
     ],
   },
   {
-    label: "Automation",
+    label: 'Automation',
     items: [
-      ["Workflows", "/automation", Workflow, "#d97706", "#fbbf24"],
-      ["WhatsApp", "/whatsapp", WhatsAppIcon, "#16a34a", "#25d366"],
-      ["AI Assistant", "/ai", Sparkles, "#c026d3", "#e879f9"],
+      ['Workflows', '/automation', Workflow, '#d97706', '#fbbf24'],
+      ['WhatsApp', '/whatsapp', WhatsAppIcon, '#16a34a', '#25d366'],
+      ['AI Assistant', '/ai', Sparkles, '#c026d3', '#e879f9'],
     ],
   },
-  { label: "Insights", items: [["Reporting", "/reporting", BarChart3, "#4f46e5", "#818cf8"]] },
-  { label: "Admin", items: [["Configuration", "/configuration", Settings, "#0891b2", "#22d3ee"]] },
+  {
+    label: 'Insights',
+    items: [['Reporting', '/reporting', BarChart3, '#4f46e5', '#818cf8']],
+  },
+  {
+    label: 'Admin',
+    items: [
+      ['Configuration', '/configuration', Settings, '#0891b2', '#22d3ee'],
+    ],
+  },
 ] as const;
 
 // Lets pages adapt to the desktop sidebar, e.g. the dashboard shortens money figures while it is open.
@@ -76,25 +92,25 @@ export function Shell({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const location = useLocation();
   const notifications = useQuery({
-    queryKey: ["notifications"],
-    queryFn: () => api<{ read: boolean }[]>("/notifications"),
+    queryKey: ['notifications'],
+    queryFn: () => api<{ read: boolean }[]>('/notifications'),
   });
   useEffect(warmRouteChunks, []);
   useEffect(() => setMobile(false), [location.pathname]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         setCommand(true);
       }
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         setCommand(false);
         setUserMenu(false);
         setMobile(false);
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
   const warm = (to: string) => ({
     onMouseEnter: () => prefetchRoute(to, queryClient),
@@ -105,8 +121,8 @@ export function Shell({ children }: { children: ReactNode }) {
     ...group,
     items: group.items.filter(
       ([, to]) =>
-        to !== "/configuration" ||
-        ["Administrator", "Sales Manager"].includes(user?.role.name ?? ""),
+        to !== '/configuration' ||
+        ['Administrator', 'Sales Manager'].includes(user?.role.name ?? ''),
     ),
   }));
   const sidebar = (
@@ -137,7 +153,7 @@ export function Shell({ children }: { children: ReactNode }) {
       </div>
       <nav className="scrollbar-thin flex-1 overflow-y-auto px-2.5 py-3">
         {visible.map((group) => (
-          <div className="mb-4" key={group.label || "primary"}>
+          <div className="mb-4" key={group.label || 'primary'}>
             {group.label && !collapsed && (
               <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
                 {group.label}
@@ -150,12 +166,14 @@ export function Shell({ children }: { children: ReactNode }) {
                 {...warm(to)}
                 title={collapsed ? label : undefined}
                 className={({ isActive }) =>
-                  `mb-0.5 flex min-h-9 items-center gap-3 rounded-lg px-2.5 text-[12px] font-medium transition-colors ${isActive ? "nav-active bg-blue-100 text-blue-700" : "hover:bg-blue-50 hover:text-blue-700"} ${collapsed ? "justify-center" : ""}`
+                  `mb-0.5 flex min-h-9 items-center gap-3 rounded-lg px-2.5 text-[12px] font-medium transition-colors ${isActive ? 'nav-active bg-blue-100 text-blue-700' : 'hover:bg-blue-50 hover:text-blue-700'} ${collapsed ? 'justify-center' : ''}`
                 }
               >
                 <span
                   className="nav-icon grid shrink-0 place-items-center"
-                  style={{ "--icon": light, "--icon-dark": dark } as CSSProperties}
+                  style={
+                    { '--icon': light, '--icon-dark': dark } as CSSProperties
+                  }
                 >
                   <Icon size={16} />
                 </span>
@@ -167,14 +185,20 @@ export function Shell({ children }: { children: ReactNode }) {
       </nav>
       <div className="relative border-t border-white/10 p-3">
         <button
-          className={`mb-1 flex min-h-10 w-full items-center gap-3 rounded-lg px-2.5 text-[13px] hover:bg-white/[.07] hover:text-white ${collapsed ? "justify-center" : ""}`}
+          className={`mb-1 flex min-h-10 w-full items-center gap-3 rounded-lg px-2.5 text-[13px] hover:bg-white/[.07] hover:text-white ${collapsed ? 'justify-center' : ''}`}
         >
-          <CircleHelp size={18} className="nav-icon" style={{ "--icon": "#2563eb", "--icon-dark": "#60a5fa" } as CSSProperties} />
-          {!collapsed && "Help & support"}
+          <CircleHelp
+            size={18}
+            className="nav-icon"
+            style={
+              { '--icon': '#2563eb', '--icon-dark': '#60a5fa' } as CSSProperties
+            }
+          />
+          {!collapsed && 'Help & support'}
         </button>
         <button
           onClick={() => setUserMenu(!userMenu)}
-          className={`flex min-h-11 w-full items-center gap-3 rounded-lg px-2 hover:bg-white/[.07] ${collapsed ? "justify-center" : ""}`}
+          className={`flex min-h-11 w-full items-center gap-3 rounded-lg px-2 hover:bg-white/[.07] ${collapsed ? 'justify-center' : ''}`}
         >
           <Avatar name={user?.name} size={30} />
           {!collapsed && (
@@ -207,13 +231,13 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-[#f7f8fa]">
       <aside
-        className={`fixed inset-y-0 left-0 z-50 hidden transition-[width] duration-200 md:block ${collapsed ? "w-[72px]" : "w-[240px]"}`}
+        className={`fixed inset-y-0 left-0 z-50 hidden transition-[width] duration-200 md:block ${collapsed ? 'w-[72px]' : 'w-[240px]'}`}
       >
         {sidebar}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="absolute -right-3 top-[76px] grid h-7 w-7 place-items-center rounded-full border bg-white text-slate-500 shadow-sm"
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
@@ -231,7 +255,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </>
       )}
       <div
-        className={`transition-[padding] duration-200 ${collapsed ? "md:pl-[72px]" : "md:pl-[240px]"}`}
+        className={`transition-[padding] duration-200 ${collapsed ? 'md:pl-[72px]' : 'md:pl-[240px]'}`}
       >
         <header className="sticky top-0 z-30 flex h-16 items-center border-b bg-white/95 px-4 backdrop-blur sm:px-6">
           <button
@@ -261,10 +285,10 @@ export function Shell({ children }: { children: ReactNode }) {
             </button>
             <NavLink
               to="/notifications"
-              {...warm("/notifications")}
+              {...warm('/notifications')}
               className="relative grid h-10 w-10 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"
               aria-label={
-                unread ? `${unread} unread notifications` : "Notifications"
+                unread ? `${unread} unread notifications` : 'Notifications'
               }
             >
               <Bell size={18} />
@@ -277,7 +301,9 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
         </header>
         <main className="min-h-[calc(100vh-64px)]">
-          <SidebarContext.Provider value={{ collapsed }}>{children}</SidebarContext.Provider>
+          <SidebarContext.Provider value={{ collapsed }}>
+            {children}
+          </SidebarContext.Provider>
         </main>
       </div>
       {command && <CommandPalette onClose={() => setCommand(false)} />}
@@ -286,10 +312,10 @@ export function Shell({ children }: { children: ReactNode }) {
 }
 
 function CommandPalette({ onClose }: { onClose: () => void }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const navigate = useNavigate();
   const search = useQuery({
-    queryKey: ["global-search", query],
+    queryKey: ['global-search', query],
     enabled: query.trim().length >= 2,
     queryFn: () =>
       api<{
@@ -304,18 +330,18 @@ function CommandPalette({ onClose }: { onClose: () => void }) {
     onClose();
   };
   const actions = [
-    ["Add lead", "/leads?create=1"],
-    ["Import leads from CSV", "/leads/import"],
-    ["Create deal", "/pipeline?create=1"],
-    ["Create task", "/activities"],
-    ["Schedule meeting", "/calendar"],
+    ['Add lead', '/leads?create=1'],
+    ['Import leads from CSV', '/leads/import'],
+    ['Create deal', '/pipeline?create=1'],
+    ['Create task', '/activities'],
+    ['Schedule meeting', '/calendar'],
   ] as const;
   const resultGroups = useMemo(
     () =>
       search.data
         ? [
             [
-              "Leads",
+              'Leads',
               search.data.leads.map((x) => ({
                 name: x.title,
                 detail: x.companyName,
@@ -323,7 +349,7 @@ function CommandPalette({ onClose }: { onClose: () => void }) {
               })),
             ],
             [
-              "Deals",
+              'Deals',
               search.data.deals.map((x) => ({
                 name: x.title,
                 detail: money(x.expectedRevenue),
@@ -331,19 +357,19 @@ function CommandPalette({ onClose }: { onClose: () => void }) {
               })),
             ],
             [
-              "Contacts",
+              'Contacts',
               search.data.contacts.map((x) => ({
                 name: x.name,
                 detail: x.email,
-                path: "/contacts",
+                path: '/contacts',
               })),
             ],
             [
-              "Companies",
+              'Companies',
               search.data.companies.map((x) => ({
                 name: x.name,
                 detail: x.industry,
-                path: "/contacts",
+                path: '/contacts',
               })),
             ],
           ]
@@ -455,7 +481,7 @@ export function PageHeader({
       <div className="flex flex-wrap items-center gap-3">
         <div className="mr-auto">
           <div className="mb-1 text-[11px] font-medium capitalize text-slate-400">
-            Workspace / {loc.pathname.split("/")[1] || "Dashboard"}
+            Workspace / {loc.pathname.split('/')[1] || 'Dashboard'}
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
             {title}
@@ -493,11 +519,11 @@ type SavedView = {
   };
 };
 const menuItem =
-  "flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50";
+  'flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50';
 function ToolbarMenu({
   label,
   count,
-  width = "w-60",
+  width = 'w-60',
   children,
 }: {
   label: string;
@@ -556,28 +582,28 @@ export function SearchToolbar({
 }) {
   const qc = useQueryClient(),
     filters = state?.filters ?? {},
-    groupBy = state?.groupBy ?? "";
+    groupBy = state?.groupBy ?? '';
   const views = useQuery({
-      queryKey: ["filters"],
-      queryFn: () => api<SavedView[]>("/filters"),
+      queryKey: ['filters'],
+      queryFn: () => api<SavedView[]>('/filters'),
       enabled: Boolean(resource),
     }),
     saved = (views.data ?? []).filter((x) => x.resource === resource);
   const saveView = useMutation({
       mutationFn: (name: string) =>
-        api("/filters", {
-          method: "POST",
+        api('/filters', {
+          method: 'POST',
           body: JSON.stringify({
             name,
             resource,
             query: { search: value, filters, groupBy },
           }),
         }),
-      onSuccess: () => qc.invalidateQueries({ queryKey: ["filters"] }),
+      onSuccess: () => qc.invalidateQueries({ queryKey: ['filters'] }),
     }),
     dropView = useMutation({
-      mutationFn: (id: string) => api(`/filters/${id}`, { method: "DELETE" }),
-      onSuccess: () => qc.invalidateQueries({ queryKey: ["filters"] }),
+      mutationFn: (id: string) => api(`/filters/${id}`, { method: 'DELETE' }),
+      onSuccess: () => qc.invalidateQueries({ queryKey: ['filters'] }),
     }),
     activeCount = Object.values(filters).filter(Boolean).length;
   return (
@@ -611,18 +637,18 @@ export function SearchToolbar({
                       return (
                         <button
                           key={o.value}
-                          className={`${menuItem} ${on ? "font-semibold text-indigo-700" : ""}`}
+                          className={`${menuItem} ${on ? 'font-semibold text-indigo-700' : ''}`}
                           onClick={() =>
                             onState?.({
                               filters: {
                                 ...filters,
-                                [g.key]: on ? "" : o.value,
+                                [g.key]: on ? '' : o.value,
                               },
                               groupBy,
                             })
                           }
                         >
-                          <Check size={13} className={on ? "" : "invisible"} />
+                          <Check size={13} className={on ? '' : 'invisible'} />
                           {o.label}
                         </button>
                       );
@@ -653,13 +679,13 @@ export function SearchToolbar({
                 return (
                   <button
                     key={o.value}
-                    className={`${menuItem} ${on ? "font-semibold text-indigo-700" : ""}`}
+                    className={`${menuItem} ${on ? 'font-semibold text-indigo-700' : ''}`}
                     onClick={() => {
-                      onState?.({ filters, groupBy: on ? "" : o.value });
+                      onState?.({ filters, groupBy: on ? '' : o.value });
                       close();
                     }}
                   >
-                    <Check size={13} className={on ? "" : "invisible"} />
+                    <Check size={13} className={on ? '' : 'invisible'} />
                     {o.label}
                   </button>
                 );
@@ -682,10 +708,10 @@ export function SearchToolbar({
                   <button
                     className={`${menuItem} flex-1`}
                     onClick={() => {
-                      onChange(item.query.search ?? "");
+                      onChange(item.query.search ?? '');
                       onState?.({
                         filters: item.query.filters ?? {},
-                        groupBy: item.query.groupBy ?? "",
+                        groupBy: item.query.groupBy ?? '',
                       });
                       close();
                     }}
@@ -706,7 +732,7 @@ export function SearchToolbar({
                 className={`${menuItem} mt-1 border-t`}
                 disabled={saveView.isPending}
                 onClick={() => {
-                  const name = prompt("Name this view");
+                  const name = prompt('Name this view');
                   if (name?.trim()) saveView.mutate(name.trim());
                   close();
                 }}
